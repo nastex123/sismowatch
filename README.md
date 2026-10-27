@@ -1,8 +1,10 @@
 # SismoWatch - Plataforma de Monitoreo Sísmico Global y Automatización con IA
 
+**Repositorio Oficial en GitHub**: [https://github.com/nastex123/sismowatch](https://github.com/nastex123/sismowatch)
+
 **SismoWatch** es un producto de datos integral de grado empresarial diseñado para transformar el feed público en tiempo real del **Servicio Geológico de Estados Unidos (USGS)** en una plataforma analítica automatizada, segura y de alta disponibilidad para la toma de decisiones en operaciones y gestión de riesgo.
 
-La solución implementa una **Arquitectura 100% Medallón Híbrida (Bronze -> Silver -> Gold)**, orquestada de extremo a extremo con **Apache Airflow**, procesada analíticamente con **Apache Spark (PySpark)** en memoria, asegurada mediante **PostgreSQL con segregación de roles y JWT**, y consumida a través de una API moderna en **FastAPI** y una interfaz interactiva en **React + TypeScript + Tailwind CSS** con un **Chatbot conversacional** conectado a la capa Gold respaldado por agentes de **OpenCode CLI** y **Google Gemini**.
+La solución implementa una **Arquitectura Medallón Híbrida (Bronze -> Silver -> Gold)**, orquestada de extremo a extremo con **Apache Airflow**, procesada analíticamente con **Apache Spark (PySpark)** en memoria, asegurada mediante **PostgreSQL con segregación de roles y JWT**, y consumida a través de una API moderna en **FastAPI** y una interfaz interactiva en **React + TypeScript + Tailwind CSS** con un **Chatbot conversacional** conectado a los registros de monitoreo respaldado por agentes de **OpenCode CLI** y **Google Gemini**.
 
 ---
 
@@ -12,6 +14,10 @@ El sistema completo se despliega de forma automatizada mediante Docker Compose s
 
 ### Paso 1: Clonar el repositorio y configurar variables de entorno
 ```bash
+# Clonar el repositorio oficial
+git clone https://github.com/nastex123/sismowatch.git
+cd sismowatch
+
 # Copiar el archivo de entorno de ejemplo
 cp .env.example .env
 ```
