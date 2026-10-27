@@ -16,6 +16,24 @@ marked.setOptions({
   pedantic: false,
 });
 
+// Función para sanitizar y reparar sintaxis común en código Mermaid generado por LLMs
+const sanitizeMermaidCode = (code: string): string => {
+  if (!code) return '';
+  let cleaned = code.trim();
+
+  // Asegurar que las etiquetas con paréntesis, dos puntos o barras dentro de corchetes [ ... ] tengan comillas dobles
+  cleaned = cleaned.replace(/([a-zA-Z0-9_-]+)\[([^\]"\n]+)\]/g, (_match, id, text) => {
+    // Si ya tiene comillas o está vacío, no modificar
+    const t = text.trim();
+    if (t.startsWith('"') && t.endsWith('"')) return `${id}[${t}]`;
+    // Escapar comillas internas si hubiera
+    const escaped = t.replace(/"/g, "'");
+    return `${id}["${escaped}"]`;
+  });
+
+  return cleaned;
+};
+
 // Subcomponente interactivo para diagramas Mermaid
 const MermaidBlock: React.FC<{ chart: string; id: string }> = ({ chart, id }) => {
   const [svgHtml, setSvgHtml] = useState<string | null>(null);
@@ -23,6 +41,20 @@ const MermaidBlock: React.FC<{ chart: string; id: string }> = ({ chart, id }) =>
 
   useEffect(() => {
     let isMounted = true;
+
+    // Eliminar cualquier elemento de error insertado por Mermaid directamente en el DOM fuera de React
+    const cleanupMermaidArtifacts = () => {
+      try {
+        document.querySelectorAll('[id^="dmermaid"], [id*="mermaid-error"]').forEach((node) => {
+          if (node.parentElement === document.body) {
+            node.remove();
+          }
+        });
+      } catch {
+        // Ignorar
+      }
+    };
+
     const renderDiagram = async () => {
       const mermaid = (window as any).mermaid;
       if (!mermaid) {
@@ -30,8 +62,11 @@ const MermaidBlock: React.FC<{ chart: string; id: string }> = ({ chart, id }) =>
         return;
       }
       try {
+        cleanupMermaidArtifacts();
+
         mermaid.initialize({
           startOnLoad: false,
+          suppressErrorRendering: true,
           theme: 'dark',
           themeVariables: {
             darkMode: true,
@@ -44,15 +79,20 @@ const MermaidBlock: React.FC<{ chart: string; id: string }> = ({ chart, id }) =>
             tertiaryColor: '#27272a'
           }
         });
-        const cleanChart = chart.trim();
+
+        const cleanChart = sanitizeMermaidCode(chart);
         const elementId = `mermaid-chart-${id.replace(/[^a-zA-Z0-9]/g, '')}-${Math.floor(Math.random() * 100000)}`;
         const { svg } = await mermaid.render(elementId, cleanChart);
+        
+        cleanupMermaidArtifacts();
+
         if (isMounted) {
           setSvgHtml(svg);
           setRenderError(false);
         }
       } catch (err) {
         console.warn('Error al procesar diagrama Mermaid:', err);
+        cleanupMermaidArtifacts();
         if (isMounted) {
           setRenderError(true);
         }
@@ -62,6 +102,7 @@ const MermaidBlock: React.FC<{ chart: string; id: string }> = ({ chart, id }) =>
     renderDiagram();
     return () => {
       isMounted = false;
+      cleanupMermaidArtifacts();
     };
   }, [chart, id]);
 
