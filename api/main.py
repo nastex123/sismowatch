@@ -647,7 +647,7 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
 
             # Regiones activas
             cur.execute("""
-                SELECT region_name, event_count, max_magnitude, avg_depth_km 
+                SELECT region_name, event_count, max_magnitude, last_event_time 
                 FROM gold.active_regions 
                 ORDER BY event_count DESC LIMIT 5;
             """)

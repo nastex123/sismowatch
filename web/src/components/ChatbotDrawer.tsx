@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, X, Cpu } from 'lucide-react';
+import { Bot, Send, X, Cpu, BarChart2 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { ChatMessage } from '../types';
 
@@ -8,15 +8,162 @@ interface ChatbotDrawerProps {
   onClose: () => void;
 }
 
+// Subcomponente interactivo para renderizar diagramas Mermaid dinámicamente
+const MermaidBlock: React.FC<{ chart: string; id: string }> = ({ chart, id }) => {
+  const [svgHtml, setSvgHtml] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const renderDiagram = async () => {
+      const mermaid = (window as any).mermaid;
+      if (!mermaid) {
+        setTimeout(renderDiagram, 400);
+        return;
+      }
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'dark',
+          themeVariables: {
+            darkMode: true,
+            background: '#09090b',
+            primaryColor: '#e11d48',
+            primaryTextColor: '#f4f4f5',
+            primaryBorderColor: '#be123c',
+            lineColor: '#f43f5e',
+            secondaryColor: '#18181b',
+            tertiaryColor: '#27272a'
+          }
+        });
+        const cleanChart = chart.trim();
+        const elementId = `mermaid-chart-${id.replace(/[^a-zA-Z0-9]/g, '')}-${Math.floor(Math.random() * 10000)}`;
+        const { svg } = await mermaid.render(elementId, cleanChart);
+        if (isMounted) {
+          setSvgHtml(svg);
+          setRenderError(false);
+        }
+      } catch (err) {
+        console.warn('Error al procesar diagrama Mermaid:', err);
+        if (isMounted) {
+          setRenderError(true);
+        }
+      }
+    };
+
+    renderDiagram();
+    return () => {
+      isMounted = false;
+    };
+  }, [chart, id]);
+
+  if (renderError || !svgHtml) {
+    return (
+      <div className="my-2.5 p-3 rounded bg-zinc-950 border border-zinc-800 font-mono text-[11px] text-zinc-300 overflow-x-auto shadow-inner">
+        <div className="flex items-center justify-between text-[10px] text-rose-400 font-bold mb-1.5 uppercase tracking-wider">
+          <span className="flex items-center gap-1.5">
+            <BarChart2 className="w-3.5 h-3.5" />
+            Diagrama Analítico
+          </span>
+          {!svgHtml && !renderError && <span className="text-zinc-500 animate-pulse">Renderizando...</span>}
+        </div>
+        <pre className="text-zinc-400 whitespace-pre text-[10px] font-mono leading-tight">{chart}</pre>
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-2.5 p-3 rounded bg-zinc-950 border border-zinc-850 overflow-x-auto flex flex-col shadow-inner">
+      <div className="w-full flex items-center justify-between text-[10px] text-rose-400 font-mono font-bold mb-2 border-b border-zinc-900 pb-1.5">
+        <span className="flex items-center gap-1.5">
+          <BarChart2 className="w-3.5 h-3.5" />
+          Diagrama Analítico en Tiempo Real
+        </span>
+      </div>
+      <div
+        className="w-full flex justify-center py-2 [&>svg]:max-w-full [&>svg]:h-auto"
+        dangerouslySetInnerHTML={{ __html: svgHtml }}
+      />
+    </div>
+  );
+};
+
+// Parser de texto con soporte para Markdown y bloques de diagramas Mermaid
+const renderMessageContent = (text: string, msgId: string) => {
+  // Regex para detectar bloques ```mermaid ... ```
+  const mermaidRegex = /```mermaid([\s\S]*?)```/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = mermaidRegex.exec(text)) !== null) {
+    const textBefore = text.substring(lastIndex, match.index);
+    if (textBefore) {
+      parts.push(
+        <div key={`text-${lastIndex}`} className="whitespace-pre-wrap leading-relaxed">
+          {formatMarkdownText(textBefore)}
+        </div>
+      );
+    }
+
+    const chartCode = match[1].trim();
+    parts.push(
+      <MermaidBlock
+        key={`mermaid-${match.index}`}
+        chart={chartCode}
+        id={`${msgId}-${match.index}`}
+      />
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  const remainingText = text.substring(lastIndex);
+  if (remainingText) {
+    parts.push(
+      <div key={`text-${lastIndex}`} className="whitespace-pre-wrap leading-relaxed">
+        {formatMarkdownText(remainingText)}
+      </div>
+    );
+  }
+
+  return parts;
+};
+
+// Formateador simple de negritas e ítems
+const formatMarkdownText = (raw: string) => {
+  // Manejo de negritas **texto**
+  const boldRegex = /\*\*(.*?)\*\*/g;
+  const elements: (string | React.ReactNode)[] = [];
+  let lastIdx = 0;
+  let bMatch: RegExpExecArray | null;
+
+  while ((bMatch = boldRegex.exec(raw)) !== null) {
+    if (bMatch.index > lastIdx) {
+      elements.push(raw.substring(lastIdx, bMatch.index));
+    }
+    elements.push(
+      <strong key={`b-${bMatch.index}`} className="text-white font-bold">
+        {bMatch[1]}
+      </strong>
+    );
+    lastIdx = bMatch.index + bMatch[0].length;
+  }
+  if (lastIdx < raw.length) {
+    elements.push(raw.substring(lastIdx));
+  }
+  return elements;
+};
+
 export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose }) => {
   const [provider, setProvider] = useState<'opencode' | 'gemini' | 'fallback'>('opencode');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       sender: 'assistant',
-      text: '¡Hola! Soy el asistente analítico de SismoWatch. Puedo responder preguntas sobre la actividad sísmica global y estadísticas consultando directamente la capa Gold.',
+      text: '¡Hola! Soy el asistente analítico de SismoWatch con motor OpenCode. Puedo responder tus consultas sobre la actividad sísmica en tiempo real consultando la capa Gold y generar diagramas analíticos para ilustrar las tendencias geológicas.',
       timestamp: new Date().toLocaleTimeString(),
-      engine: 'SismoWatch Gold Analyst'
+      engine: 'OpenCode Intelligence'
     }
   ]);
   const [input, setInput] = useState('');
@@ -76,7 +223,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-full max-w-md sm:w-[420px] bg-black border border-zinc-900 rounded shadow-2xl flex flex-col h-[560px] overflow-hidden">
+    <div className="fixed bottom-4 right-4 z-[60] w-full max-w-lg sm:w-[480px] bg-black border border-zinc-900 rounded shadow-2xl flex flex-col h-[600px] overflow-hidden">
       {/* Header del Chat */}
       <div className="bg-zinc-950 p-3.5 border-b border-zinc-900 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -86,9 +233,9 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
           <div>
             <div className="flex items-center gap-2">
               <h4 className="text-xs font-mono font-bold text-white tracking-wide uppercase">Asistente SismoWatch</h4>
-              <span className="text-[10px] font-mono border-b border-rose-500/60 pb-0.5 text-rose-400">Capa Gold</span>
+              <span className="text-[10px] font-mono border-b border-rose-500/60 pb-0.5 text-rose-400">OpenCode + Gold</span>
             </div>
-            <p className="text-[10px] text-zinc-500 font-mono">Consultas Analíticas en Lenguaje Natural</p>
+            <p className="text-[10px] text-zinc-500 font-mono">Consultas en Tiempo Real con Diagramas</p>
           </div>
         </div>
         <button
@@ -99,7 +246,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
         </button>
       </div>
 
-      {/* Selector de Modo de IA - Minimalista */}
+      {/* Selector de Modo de IA */}
       <div className="bg-zinc-950/80 px-3 py-2 border-b border-zinc-900 flex items-center justify-between text-xs font-mono">
         <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Motor IA:</span>
         <div className="flex gap-2">
@@ -112,7 +259,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
                 : 'border-transparent text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            OpenCode
+            OpenCode (Default)
           </button>
           <button
             type="button"
@@ -139,25 +286,25 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
         </div>
       </div>
 
-      {/* Sugerencias Rápidas */}
+      {/* Sugerencias Rápidas con Diagramas */}
       <div className="bg-black px-3 py-2 border-b border-zinc-900 flex items-center gap-2 overflow-x-auto text-[11px] font-mono text-zinc-400">
         <button
-          onClick={() => handleSend('¿Cuáles fueron los sismos más fuertes de hoy?')}
-          className="whitespace-nowrap px-2 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
+          onClick={() => handleSend('¿Cuáles son los sismos más fuertes de hoy? Muestra un diagrama')}
+          className="whitespace-nowrap px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
         >
-          Sismos más fuertes
+          Top Sismos + Diagrama
         </button>
         <button
-          onClick={() => handleSend('¿Hay alguna alerta de tsunami activa?')}
-          className="whitespace-nowrap px-2 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
+          onClick={() => handleSend('Explica la arquitectura Medallón de SismoWatch con un diagrama Mermaid')}
+          className="whitespace-nowrap px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
+        >
+          Diagrama Arquitectura
+        </button>
+        <button
+          onClick={() => handleSend('¿Hay alertas de tsunami activas y cuáles son las zonas de riesgo?')}
+          className="whitespace-nowrap px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
         >
           Alertas de Tsunami
-        </button>
-        <button
-          onClick={() => handleSend('¿Cuál es el resumen de los últimos 30 días?')}
-          className="whitespace-nowrap px-2 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
-        >
-          Resumen 30d
         </button>
       </div>
 
@@ -169,15 +316,16 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
             className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
           >
             <div
-              className={`max-w-[85%] p-3 rounded text-xs ${
+              className={`max-w-[92%] p-3 rounded text-xs ${
                 msg.sender === 'user'
                   ? 'bg-zinc-900 text-white border border-zinc-800'
                   : 'bg-zinc-950 text-zinc-200 border-l-2 border-rose-500 border-t border-r border-b border-zinc-900'
               }`}
             >
-              <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+              {renderMessageContent(msg.text, msg.id)}
+
               {msg.engine && (
-                <div className="mt-2 pt-1 border-t border-zinc-900 flex items-center justify-between text-[10px] font-mono text-zinc-500">
+                <div className="mt-2.5 pt-1.5 border-t border-zinc-900 flex items-center justify-between text-[10px] font-mono text-zinc-500">
                   <span className="flex items-center gap-1">
                     <Cpu className="w-3 h-3 text-rose-400" />
                     {msg.engine}
@@ -189,9 +337,9 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
           </div>
         ))}
         {loading && (
-          <div className="flex items-center gap-2 text-zinc-500 text-xs font-mono p-2">
+          <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono p-2">
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-            <span>Consultando capa Gold con {provider}...</span>
+            <span>Consultando datos reales y generando diagrama con {provider}...</span>
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -210,7 +358,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Pregunta sobre sismos, magnitudes o tsunamis..."
+            placeholder="Pregunta sobre sismos o solicita diagramas..."
             className="flex-1 bg-black border border-zinc-850 rounded px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-rose-500 font-mono"
           />
           <button

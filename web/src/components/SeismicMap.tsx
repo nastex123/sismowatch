@@ -51,9 +51,9 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
   };
 
   return (
-    <div className="relative w-full h-[450px] lg:h-[500px] rounded overflow-hidden border border-zinc-900 shadow-md bg-black">
+    <div className="relative isolate z-0 w-full h-[450px] lg:h-[500px] rounded overflow-hidden border border-zinc-900 shadow-md bg-black">
       {/* Header del Mapa - Estilo Terminal Minimalista */}
-      <div className="absolute top-3 left-3 z-[1000] flex flex-wrap items-center gap-3">
+      <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-3">
         <div className="bg-black/90 backdrop-blur-md px-3 py-1.5 rounded border border-zinc-850 text-xs font-mono text-zinc-300 flex items-center gap-2">
           <Compass className="w-3.5 h-3.5 text-rose-400" />
           <span>Focos: <strong className="text-white font-mono">{filteredEvents.length}</strong></span>
@@ -99,7 +99,7 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
       </div>
 
       {/* Leyenda de Severidad Minimalista */}
-      <div className="absolute bottom-4 right-4 z-[1000] bg-black/90 backdrop-blur-md p-3 rounded border border-zinc-850 text-[11px] text-zinc-300 shadow flex flex-col gap-1.5 font-mono">
+      <div className="absolute bottom-4 right-4 z-20 bg-black/90 backdrop-blur-md p-3 rounded border border-zinc-850 text-[11px] text-zinc-300 shadow flex flex-col gap-1.5 font-mono">
         <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-0.5">Severidad Richter</span>
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-[#71717a]"></span>
@@ -132,8 +132,9 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
         className="w-full h-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; OpenStreetMap'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+          maxZoom={16}
         />
 
         <MapFocusController targetCoords={targetCoords} />
