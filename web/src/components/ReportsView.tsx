@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AIReport, TimeRange } from '../types';
 import { FileText, Download, Sparkles, RefreshCw, CheckCircle, Clock, DollarSign, Cpu } from 'lucide-react';
 import { apiService } from '../services/api';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ReportsViewProps {
   reports: AIReport[];
@@ -196,7 +197,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <div>
                 <h4 className="text-xs font-mono uppercase text-zinc-500 font-bold mb-2">Síntesis Analítica:</h4>
                 <div className="p-4 bg-black border border-zinc-900 rounded text-xs leading-relaxed text-zinc-200 font-sans border-l-2 border-rose-500">
-                  {current.executive_summary}
+                  <MarkdownRenderer content={current.executive_summary} idPrefix={`rep-${current.id}`} />
                 </div>
               </div>
 

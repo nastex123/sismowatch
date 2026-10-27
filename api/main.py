@@ -742,6 +742,8 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         f"Tu misión es responder con alta precisión técnica, claridad y datos 100% verídicos basados en la información geológica real provista.\n\n"
         f"REGLAS OBLIGATORIAS:\n"
         f"- Basa tus afirmaciones en los datos reales del contexto provisto (PostgreSQL Medallón en vivo). Si te preguntan por sismos recientes, máximos, promedios, alertas de tsunami o enjambres, cita los números exactos y ubicaciones reales.\n"
+        f"- SOPORTE DE TABLAS MARKDOWN: Si el usuario solicita tablas, comparativas, listas tabuladas o desgloses, FORMATEA OBLIGATORIAMENTE la información en tablas Markdown estándar (| Columna 1 | Columna 2 | ...) con encabezados y separadores claros.\n"
+        f"- FORMATO MARKDOWN RICO: Utiliza negritas, listas y bloques para facilitar la lectura analítica.\n"
         f"- SIEMPRE que responda sobre estadísticas, comparativas, resumen de eventos o arquitectura, GENERA AL MENOS UN DIAGRAMA MERMAID (usando ```mermaid ... ```) para ilustrar visualmente la respuesta (por ejemplo un flowchart LR, pie chart, o diagramas de relación).\n"
         f"- Si el usuario solicita un diagrama explícitamente, diséñalo completo y detallado en sintaxis Mermaid válida.\n"
         f"- Tono: Profesional, conciso y técnico.\n\n"
@@ -825,12 +827,31 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         else:
             engine_used = "motor analítico determinista (sql gold)"
 
+        # Generar tabla markdown si el usuario solicita tablas
+        table_markdown = ""
+        is_table_requested = any(kw in cleaned_prompt.lower() for kw in ["tabla", "table", "cuadro", "comparativ", "lista", "top"])
+        if is_table_requested and largest_events:
+            table_markdown = (
+                "\n### Tabla de Sismos Más Significativos:\n\n"
+                "| Magnitud | Ubicación | Profundidad | Tsunami | Alerta |\n"
+                "| :---: | :--- | :---: | :---: | :---: |\n"
+            )
+            for ev in largest_events[:5]:
+                mag_val = f"**M {ev.get('mag', 0.0):.1f}**"
+                plc = ev.get('place', 'Ubicación no especificada')[:38]
+                dep = f"{ev.get('depth_km', 0.0):.1f} km"
+                tsu = "🌊 Activo" if ev.get('tsunami', 0) > 0 else "Normal"
+                sig_level = "Alta" if (ev.get('mag', 0.0) >= 5.0 or ev.get('tsunami', 0) > 0) else "Moderada"
+                table_markdown += f"| {mag_val} | {plc} | {dep} | {tsu} | {sig_level} |\n"
+            table_markdown += "\n"
+
         reply_text = (
             f"**Resumen Analítico en Tiempo Real (Capa Gold)**:\n\n"
             f"- **Actividad 24 Horas**: Se han procesado **{total_e}** sismos con una magnitud promedio de **M {avg_m}**.\n"
             f"- **Evento de Mayor Intensidad**: **M {max_m}** localizado en *{place_max}*.\n"
             f"- **Alertas de Tsunami**: **{tsunami_c}** evento(s) con potencial de tsunami activo.\n"
             f"- **SLA de Calidad**: {kpis.get('quality_score', 100.0)}% de datos validados por PySpark.\n\n"
+            f"{table_markdown}"
             f"```mermaid\n"
             f"flowchart TD\n"
             f"    A[\"🌐 Sismicidad Global (24h): {total_e} eventos\"] --> B[\"⚡ Sismo Máximo: M {max_m}\"]\n"
