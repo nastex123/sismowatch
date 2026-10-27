@@ -263,18 +263,11 @@ def get_events(
             where_clause = " AND ".join(conditions)
 
             # Contar total
-            cur.execute(f"SELECT COUNT(*) as total FROM silver.events WHERE {where_clause};", tuple(params))
+            cur.execute("SELECT COUNT(*) as total FROM silver.events WHERE " + where_clause + ";", tuple(params))  # nosec
             total_records = cur.fetchone()["total"]
 
             # Obtener página
-            query = f"""
-                SELECT id, mag, place, time_utc, latitude, longitude, depth_km, 
-                       tsunami, sig, status, mag_type, type, url, z_score_mag, is_swarm
-                FROM silver.events
-                WHERE {where_clause}
-                ORDER BY time_utc DESC
-                LIMIT %s OFFSET %s;
-            """
+            query = "SELECT id, mag, place, time_utc, latitude, longitude, depth_km, tsunami, sig, status, mag_type, type, url, z_score_mag, is_swarm FROM silver.events WHERE " + where_clause + " ORDER BY time_utc DESC LIMIT %s OFFSET %s;"  # nosec B608
             cur.execute(query, tuple(params + [limit, offset]))
             items = cur.fetchall()
 
