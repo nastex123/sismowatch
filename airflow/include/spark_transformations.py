@@ -45,7 +45,7 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
     raw_rows = []
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, payload, ingested_at FROM bronze.raw_events ORDER BY ingested_at DESC LIMIT 5000;")
+            cur.execute("SELECT id, payload, ingested_at FROM bronze.raw_events ORDER BY ingested_at DESC LIMIT 25000;")
             raw_rows = cur.fetchall()
     except Exception as db_err:
         logger.error(f"Error al leer de bronze.raw_events: {db_err}", exc_info=True)
@@ -243,7 +243,7 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
                 VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP);
             """, (batch_id, total_evaluated, passed_count, failed_count, quality_score))
 
-            # 4.4 Calcular y consolidar Capa Gold (gold.kpis_24h)
+            # 4.4 Calcular y consolidar Capa Gold (gold.kpis_24h consolidado a 30 días)
             cur.execute("""
                 DELETE FROM gold.kpis_24h;
                 INSERT INTO gold.kpis_24h (events_24h, max_magnitude, avg_magnitude, tsunami_alerts, quality_score, last_event_time, last_updated_at)
@@ -256,10 +256,10 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
                     MAX(time_utc),
                     CURRENT_TIMESTAMP
                 FROM silver.events
-                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '24 hours';
+                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '30 days';
             """, (quality_score,))
 
-            # 4.5 Consolidar serie temporal horaria (gold.hourly_timeseries)
+            # 4.5 Consolidar serie temporal horaria (gold.hourly_timeseries últimos 30 días)
             cur.execute("""
                 INSERT INTO gold.hourly_timeseries (hour_bucket, event_count, avg_magnitude, max_magnitude)
                 SELECT 
@@ -268,7 +268,7 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
                     ROUND(AVG(mag), 2),
                     MAX(mag)
                 FROM silver.events
-                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '30 days'
                 GROUP BY DATE_TRUNC('hour', time_utc)
                 ON CONFLICT (hour_bucket) DO UPDATE SET
                     event_count = EXCLUDED.event_count,
@@ -276,7 +276,7 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
                     max_magnitude = EXCLUDED.max_magnitude;
             """)
 
-            # 4.6 Consolidar regiones más activas (gold.active_regions)
+            # 4.6 Consolidar regiones más activas (gold.active_regions últimos 30 días)
             cur.execute("""
                 DELETE FROM gold.active_regions;
                 INSERT INTO gold.active_regions (region_name, event_count, max_magnitude, last_event_time)
@@ -286,10 +286,10 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
                     MAX(mag),
                     MAX(time_utc)
                 FROM silver.events
-                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '30 days'
                 GROUP BY place
                 ORDER BY COUNT(*) DESC
-                LIMIT 15;
+                LIMIT 25;
             """)
 
             # 4.7 Consolidar anomalías detectadas (Z-Score >= 2.5 o enjambres)

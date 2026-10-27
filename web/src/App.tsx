@@ -65,8 +65,8 @@ export const App: React.FC = () => {
     try {
       const [kpisData, eventsData, tsData, repData, pipeData] = await Promise.all([
         apiService.getKPIs().catch(() => null),
-        apiService.getEvents({ page: 1, limit: 30, min_magnitude: minMagnitude, region: searchTerm }).catch(() => ({ items: [], total_records: 0, total_pages: 1 })),
-        apiService.getTimeseries(7).catch(() => []),
+        apiService.getEvents({ page: 1, limit: 100, min_magnitude: minMagnitude, region: searchTerm }).catch(() => ({ items: [], total_records: 0, total_pages: 1 })),
+        apiService.getTimeseries(30).catch(() => []),
         apiService.getReports().catch(() => []),
         apiService.getPipelineStatus().catch(() => null)
       ]);
@@ -89,7 +89,7 @@ export const App: React.FC = () => {
 
   const loadEvents = async () => {
     try {
-      const data = await apiService.getEvents({ page, limit: 30, min_magnitude: minMagnitude, region: searchTerm });
+      const data = await apiService.getEvents({ page, limit: 100, min_magnitude: minMagnitude, region: searchTerm });
       setEvents(data.items);
       setTotalRecords(data.total_records);
       setTotalPages(data.total_pages);

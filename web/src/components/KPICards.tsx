@@ -27,17 +27,17 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, loading }) => {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
-      {/* Sismos en 24h */}
+      {/* Sismos en 30 Días */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-slate-700 transition-colors">
         <div className="flex items-center justify-between text-slate-400 mb-2">
-          <span className="text-xs font-medium">Sismos en 24h</span>
+          <span className="text-xs font-medium">Sismos (Últimos 30 Días)</span>
           <Activity className="w-4 h-4 text-emerald-400" />
         </div>
         <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
           {kpis.events_24h.toLocaleString()}
         </div>
         <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-          <span className="text-emerald-400 font-medium">Global</span> (USGS Feed)
+          <span className="text-emerald-400 font-medium">Historial 30 Días</span> (USGS Global)
         </p>
       </div>
 
