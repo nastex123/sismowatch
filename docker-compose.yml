@@ -1,0 +1,176 @@
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Base de Datos PostgreSQL 16 (Motor Medallón y Metadatos de Airflow)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: sismowatch-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_master_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-sismowatch}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sismowatch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ----------------------------------------------------------------------------
+  # 2. Inicializador de Apache Airflow
+  # ----------------------------------------------------------------------------
+  airflow-init:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: sismowatch-airflow-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: &airflow-common-env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_master_pass_2026}@postgres:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-zUEIPAQWClV82k8paoU1O7alYWx7rqKi_W8RTKI0LIA=}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY:-sismowatch_webserver_secret_key_2026_xyz}
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+      # Variables de Negocio para DAGs
+      SISMO_POSTGRES_HOST: postgres
+      SISMO_POSTGRES_PORT: 5432
+      SISMO_POSTGRES_DB: ${POSTGRES_DB:-sismowatch}
+      SISMO_INGEST_USER: ${INGEST_USER:-sismo_ingest}
+      SISMO_INGEST_PASSWORD: ${INGEST_PASSWORD:-IngestSecurePass2026!}
+      SISMO_TRANSFORM_USER: ${TRANSFORM_USER:-sismo_transform}
+      SISMO_TRANSFORM_PASSWORD: ${TRANSFORM_PASSWORD:-TransformSecurePass2026!}
+      AI_PROVIDER: ${AI_PROVIDER:-opencode}
+      OPENCODE_CLI_PATH: ${OPENCODE_CLI_PATH:-/home/Coder/.opencode/bin/opencode}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes: &airflow-common-volumes
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/include:/opt/airflow/include
+      - ./airflow/tests:/opt/airflow/tests
+      - ./airflow/logs:/opt/airflow/logs
+      - /home/Coder/.opencode:/home/Coder/.opencode:ro
+      - /home/Coder/.local/share/opencode:/home/Coder/.local/share/opencode:ro
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username "${_AIRFLOW_WWW_USER_USERNAME:-admin}" \
+          --password "${_AIRFLOW_WWW_USER_PASSWORD:-SismoAdmin2026!}" \
+          --firstname Sismo \
+          --lastname Admin \
+          --role Admin \
+          --email admin@sismowatch.internal || true
+
+  # ----------------------------------------------------------------------------
+  # 3. Apache Airflow Webserver
+  # ----------------------------------------------------------------------------
+  airflow-webserver:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: sismowatch-airflow-webserver
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    environment: *airflow-common-env
+    volumes: *airflow-common-volumes
+    ports:
+      - "${AIRFLOW_PORT:-8080}:8080"
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 4. Apache Airflow Scheduler
+  # ----------------------------------------------------------------------------
+  airflow-scheduler:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: sismowatch-airflow-scheduler
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    environment: *airflow-common-env
+    volumes: *airflow-common-volumes
+    command: scheduler
+
+  # ----------------------------------------------------------------------------
+  # 5. Backend API (FastAPI)
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: sismowatch-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-sismowatch}
+      POSTGRES_USER: ${API_USER:-sismo_api}
+      POSTGRES_PASSWORD: ${API_PASSWORD:-ApiSecurePass2026!}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@sismowatch.internal}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-SismoAdmin2026!}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-sismowatch_jwt_super_secret_key_change_in_production_2026}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      AIRFLOW_WEBSERVER_URL: http://airflow-webserver:8080
+      AIRFLOW_ADMIN_USER: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
+      AIRFLOW_ADMIN_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-SismoAdmin2026!}
+      AI_PROVIDER: ${AI_PROVIDER:-opencode}
+      OPENCODE_CLI_PATH: ${OPENCODE_CLI_PATH:-/home/Coder/.opencode/bin/opencode}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - ./api:/app
+      - /home/Coder/.opencode:/home/Coder/.opencode:ro
+      - /home/Coder/.local/share/opencode:/home/Coder/.local/share/opencode:ro
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 6. Frontend Web (React + Vite + Nginx)
+  # ----------------------------------------------------------------------------
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: sismowatch-web
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+volumes:
+  pg_data:
+    driver: local

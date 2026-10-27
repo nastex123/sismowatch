@@ -1,0 +1,22 @@
+# PySpark y procesamiento en memoria
+pyspark==3.5.1
+
+# Conectores y base de datos
+psycopg2-binary==2.9.9
+SQLAlchemy==1.4.52
+
+# Cliente HTTP, serialización y validación
+requests==2.32.3
+pydantic==2.8.2
+jinja2==3.1.4
+
+# Inteligencia Artificial y LLMs
+google-genai==0.1.1
+
+# Testing y calidad
+pytest==8.3.2
+pytest-cov==5.0.0
+
+# Seguridad y escaneo
+bandit==1.7.9
+pip-audit==2.7.3
