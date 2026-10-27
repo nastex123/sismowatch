@@ -41,9 +41,11 @@ AIRFLOW_WEBSERVER_URL = os.getenv("AIRFLOW_WEBSERVER_URL", "http://airflow-webse
 AIRFLOW_ADMIN_USER = os.getenv("AIRFLOW_ADMIN_USER", "admin")
 AIRFLOW_ADMIN_PASSWORD = os.getenv("AIRFLOW_ADMIN_PASSWORD", "SismoAdmin2026!")
 
-AI_PROVIDER = os.getenv("AI_PROVIDER", "opencode").lower()
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").lower()
 OPENCODE_CLI_PATH = os.getenv("OPENCODE_CLI_PATH", "/home/Coder/.opencode/bin/opencode")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6KVFTvDdV4PEwcRMHsZQV4EGqVof67mp9FL4Bz8EtYqaA")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "low")
 
 # ------------------------------------------------------------------------------
 # Inicialización de FastAPI
@@ -832,21 +834,41 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         except Exception as e:
             logger.warning(f"Falla de OpenCode en chat: {e}")
 
-    # 2. Modo Google Gemini API
+    # 2. Modo Google Gemini API (gemini-3.8-flash con thinking_level='low')
     elif target_provider == "gemini":
         try:
-            if not GEMINI_API_KEY:
+            gemini_key = GEMINI_API_KEY or "AQ.Ab8RN6KVFTvDdV4PEwcRMHsZQV4EGqVof67mp9FL4Bz8EtYqaA"
+            if not gemini_key:
                 logger.warning("GEMINI_API_KEY no configurada. Recurriendo a fallback determinista.")
             else:
                 from google import genai
-                client = genai.Client(api_key=GEMINI_API_KEY)
-                resp = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=full_ai_prompt
+                from google.genai import types
+
+                client = genai.Client(api_key=gemini_key)
+                thinking_level = GEMINI_THINKING_LEVEL or "low"
+                config = types.GenerateContentConfig(
+                    thinking_config=types.ThinkingConfig(thinking_level=thinking_level)
                 )
-                if resp.text:
-                    reply_text = resp.text.strip()
-                    engine_used = "gemini (gemini-2.5-flash)"
+
+                candidate_models = [
+                    GEMINI_MODEL or "gemini-3.8-flash",
+                    "gemini-3.5-flash",
+                    "gemini-2.5-flash"
+                ]
+
+                for model in candidate_models:
+                    try:
+                        resp = client.models.generate_content(
+                            model=model,
+                            contents=full_ai_prompt,
+                            config=config
+                        )
+                        if resp.text and resp.text.strip():
+                            reply_text = resp.text.strip()
+                            engine_used = f"google-{model} (thinking: {thinking_level})"
+                            break
+                    except Exception as m_err:
+                        logger.warning(f"Error invocando {model} en chat: {m_err}")
         except Exception as err:
             logger.warning(f"Falla de Gemini en chat: {err}")
 

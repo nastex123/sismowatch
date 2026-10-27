@@ -164,22 +164,45 @@ def call_opencode_cli(prompt: str, opencode_path: str = "/home/Coder/.opencode/b
         logger.warning(f"Excepción al ejecutar OpenCode CLI: {e}")
         return None
 
-def call_gemini_api(prompt: str, api_key: str) -> Optional[str]:
-    if not api_key:
+def call_gemini_api(prompt: str, api_key: str = "") -> Optional[tuple]:
+    key = api_key or os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6KVFTvDdV4PEwcRMHsZQV4EGqVof67mp9FL4Bz8EtYqaA")
+    if not key:
         return None
     try:
         from google import genai
-        client = genai.Client(api_key=api_key)
-        start = time.time()
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
+        from google.genai import types
+
+        client = genai.Client(api_key=key)
+        thinking_level = os.getenv("GEMINI_THINKING_LEVEL", "low")
+        config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_level=thinking_level)
         )
-        latency = int((time.time() - start) * 1000)
-        logger.info(f"Gemini API respondió exitosamente en {latency} ms.")
-        return response.text.strip()
+
+        candidate_models = [
+            os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+            "gemini-3.5-flash",
+            "gemini-2.5-flash"
+        ]
+
+        for model in candidate_models:
+            try:
+                start = time.time()
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=config
+                )
+                latency = int((time.time() - start) * 1000)
+                if response.text and response.text.strip():
+                    model_display = f"google-{model} (thinking: {thinking_level})"
+                    logger.info(f"Gemini API ({model_display}) respondió exitosamente en {latency} ms.")
+                    return (response.text.strip(), model_display, latency)
+            except Exception as model_err:
+                logger.warning(f"Intento con {model} no completado ({model_err}), evaluando siguiente modelo...")
+
+        return None
     except Exception as err:
-        logger.warning(f"Falla al invocar Gemini API: {err}")
+        logger.warning(f"Falla global al invocar Gemini API: {err}")
         return None
 
 def verify_anti_hallucination(summary_text: str, metrics: Dict[str, Any]) -> bool:
@@ -217,18 +240,18 @@ IMPORTANTE: No inventes ninguna cifra ni evento adicional. Menciona explícitame
     tokens_est = 0
     latency = 10
 
-    # 1. Intentar OpenCode CLI si está configurado
-    if provider == "opencode":
+    # 1. Intentar Gemini API si es el proveedor seleccionado o si hay clave disponible
+    if provider == "gemini" or gemini_key:
+        gemini_res = call_gemini_api(prompt, gemini_key)
+        if gemini_res:
+            summary_text, model_used, latency = gemini_res
+            tokens_est = len(prompt.split()) + len(summary_text.split())
+
+    # 2. Si no respondió o el proveedor es OpenCode, intentar OpenCode CLI
+    if not summary_text and (provider == "opencode" or not gemini_key):
         summary_text = call_opencode_cli(prompt, opencode_path)
         if summary_text:
             model_used = "opencode-agent-cli (deepseek-v4.1)"
-            tokens_est = len(prompt.split()) + len(summary_text.split())
-
-    # 2. Si no respondió o el proveedor es Gemini, intentar Gemini API
-    if not summary_text and (provider == "gemini" or gemini_key):
-        summary_text = call_gemini_api(prompt, gemini_key)
-        if summary_text:
-            model_used = "google-gemini-2.5-flash"
             tokens_est = len(prompt.split()) + len(summary_text.split())
 
     # 3. Validar Antialucinación

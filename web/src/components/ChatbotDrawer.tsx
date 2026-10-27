@@ -10,14 +10,14 @@ interface ChatbotDrawerProps {
 }
 
 export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose }) => {
-  const [provider, setProvider] = useState<'opencode' | 'gemini' | 'fallback'>('opencode');
+  const [provider, setProvider] = useState<'gemini' | 'opencode' | 'fallback'>('gemini');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       sender: 'assistant',
-      text: '¡Hola! Soy el asistente analítico de SismoWatch con motor OpenCode. Puedo responder tus consultas sobre la actividad sísmica en tiempo real consultando la capa Gold y generar diagramas analíticos para ilustrar las tendencias geológicas.',
+      text: '¡Hola! Soy el asistente analítico de SismoWatch impulsado por Gemini 3.8 Flash (Thinking: Low). Puedo responder tus consultas sobre la actividad sísmica en tiempo real, generar tablas comparativas estructuradas y diagramas analíticos Mermaid.',
       timestamp: new Date().toLocaleTimeString(),
-      engine: 'OpenCode Intelligence'
+      engine: 'Gemini 3.8 Flash (Low)'
     }
   ]);
   const [input, setInput] = useState('');
@@ -106,17 +106,6 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setProvider('opencode')}
-            className={`py-0.5 text-[11px] transition-all press-action border-b-2 ${
-              provider === 'opencode'
-                ? 'border-rose-500 text-white font-bold'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            OpenCode (Default)
-          </button>
-          <button
-            type="button"
             onClick={() => setProvider('gemini')}
             className={`py-0.5 text-[11px] transition-all press-action border-b-2 ${
               provider === 'gemini'
@@ -124,7 +113,18 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
                 : 'border-transparent text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            Gemini
+            Gemini 3.8 (Default)
+          </button>
+          <button
+            type="button"
+            onClick={() => setProvider('opencode')}
+            className={`py-0.5 text-[11px] transition-all press-action border-b-2 ${
+              provider === 'opencode'
+                ? 'border-rose-500 text-white font-bold'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            OpenCode
           </button>
           <button
             type="button"
