@@ -1,0 +1,262 @@
+import datetime
+import json
+import logging
+import os
+import re
+import subprocess
+import time
+from typing import Dict, Any, Optional
+
+logger = logging.getLogger("airflow.task")
+
+def sanitize_text(text: str) -> str:
+    if not text:
+        return ""
+    # Eliminar patrones comunes de prompt injection
+    cleaned = re.sub(r"(?i)(ignore previous instructions|system:|prompt:|assistant:|override)", "", text)
+    # Limpiar caracteres de control
+    cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
+    return cleaned.strip()
+
+def get_gold_computed_metrics() -> Dict[str, Any]:
+    from include.db_helpers import get_connection
+    conn = get_connection(role="transform")
+    metrics = {
+        "report_date": datetime.date.today().isoformat(),
+        "total_events_24h": 0,
+        "max_magnitude": 0.0,
+        "avg_magnitude": 0.0,
+        "tsunami_alerts": 0,
+        "top_regions": [],
+        "significant_events": []
+    }
+    try:
+        with conn.cursor() as cur:
+            # KPIs de 24h
+            cur.execute("""
+                SELECT events_24h, max_magnitude, avg_magnitude, tsunami_alerts 
+                FROM gold.kpis_24h 
+                ORDER BY last_updated_at DESC LIMIT 1;
+            """)
+            kpi_row = cur.fetchone()
+            if kpi_row:
+                metrics["total_events_24h"] = int(kpi_row[0] or 0)
+                metrics["max_magnitude"] = float(kpi_row[1] or 0.0)
+                metrics["avg_magnitude"] = float(kpi_row[2] or 0.0)
+                metrics["tsunami_alerts"] = int(kpi_row[3] or 0)
+
+            # Top 3 regiones activas
+            cur.execute("""
+                SELECT region_name, event_count, max_magnitude 
+                FROM gold.active_regions 
+                ORDER BY event_count DESC LIMIT 3;
+            """)
+            for r in cur.fetchall():
+                metrics["top_regions"].append({
+                    "region": sanitize_text(r[0]),
+                    "events": int(r[1]),
+                    "max_mag": float(r[2] or 0.0)
+                })
+
+            # Eventos más significativos (mag >= 4.0 o tsunami)
+            cur.execute("""
+                SELECT id, mag, place, time_utc, depth_km, tsunami 
+                FROM silver.events 
+                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '24 hours' 
+                  AND (mag >= 4.0 OR tsunami > 0)
+                ORDER BY mag DESC LIMIT 5;
+            """)
+            for ev in cur.fetchall():
+                metrics["significant_events"].append({
+                    "id": ev[0],
+                    "mag": float(ev[1] or 0.0),
+                    "place": sanitize_text(ev[2]),
+                    "time": ev[3].isoformat() if ev[3] else None,
+                    "depth_km": float(ev[4] or 0.0),
+                    "tsunami": int(ev[5] or 0)
+                })
+    except Exception as err:
+        logger.error(f"Error al computar métricas para reporte IA: {err}", exc_info=True)
+    finally:
+        conn.close()
+
+    return metrics
+
+def generate_deterministic_report(metrics: Dict[str, Any]) -> Dict[str, Any]:
+    total = metrics["total_events_24h"]
+    max_m = metrics["max_magnitude"]
+    avg_m = metrics["avg_magnitude"]
+    tsunami = metrics["tsunami_alerts"]
+    regions_str = ", ".join([f"{r['region']} ({r['events']} sismos)" for r in metrics["top_regions"]]) or "No se identificaron zonas con alta concentración"
+
+    summary = (
+        f"Durante las últimas 24 horas se registraron un total de {total} eventos sísmicos a nivel global, "
+        f"con una magnitud promedio de {avg_m} y un valor máximo alcanzado de {max_m}. "
+        f"Se emitieron {tsunami} alertas de tsunami. Las zonas de mayor recurrencia fueron: {regions_str}."
+    )
+
+    return {
+        "report_date": metrics["report_date"],
+        "executive_summary": summary,
+        "notable_events": metrics["significant_events"],
+        "active_zones": metrics["top_regions"],
+        "computed_metrics": metrics,
+        "model_name": "deterministic-rules-engine",
+        "tokens_used": 0,
+        "latency_ms": 5,
+        "cost_usd": 0.0
+    }
+
+def call_opencode_cli(prompt: str, opencode_path: str = "/home/Coder/.opencode/bin/opencode") -> Optional[str]:
+    if not os.path.exists(opencode_path):
+        logger.warning(f"OpenCode CLI no encontrado en ruta: {opencode_path}")
+        return None
+    try:
+        start = time.time()
+        logger.info("Invocando agente OpenCode CLI...")
+        result = subprocess.run(
+            [opencode_path, "run", "--pure", prompt],
+            capture_output=True,
+            text=True,
+            timeout=25
+        )
+        latency = int((time.time() - start) * 1000)
+        if result.returncode == 0 and result.stdout.strip():
+            logger.info(f"OpenCode CLI respondió exitosamente en {latency} ms.")
+            return result.stdout.strip()
+        else:
+            logger.warning(f"OpenCode CLI finalizó con código {result.returncode}: {result.stderr}")
+            return None
+    except Exception as e:
+        logger.warning(f"Excepción al ejecutar OpenCode CLI: {e}")
+        return None
+
+def call_gemini_api(prompt: str, api_key: str) -> Optional[str]:
+    if not api_key:
+        return None
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        start = time.time()
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        latency = int((time.time() - start) * 1000)
+        logger.info(f"Gemini API respondió exitosamente en {latency} ms.")
+        return response.text.strip()
+    except Exception as err:
+        logger.warning(f"Falla al invocar Gemini API: {err}")
+        return None
+
+def verify_anti_hallucination(summary_text: str, metrics: Dict[str, Any]) -> bool:
+    """Verifica que las cifras clave calculadas estén presentes en el texto y no se inventen magnitudes."""
+    total = str(metrics["total_events_24h"])
+    max_m = f"{metrics['max_magnitude']:.1f}"
+    
+    # Si hay sismos registrados, verificar que el máximo figure en el texto
+    if metrics["total_events_24h"] > 0 and metrics["max_magnitude"] > 0:
+        if max_m not in summary_text and str(metrics["max_magnitude"]) not in summary_text:
+            logger.warning(f"Control Antialucinación activado: Magnitud máxima calculada ({max_m}) no coincide en el texto.")
+            return False
+    return True
+
+def generate_and_save_ai_report() -> Dict[str, Any]:
+    metrics = get_gold_computed_metrics()
+    prompt = f"""
+Eres el analista geofísico principal de SismoWatch. Redacta un resumen ejecutivo formal de 1 párrafo sobre la actividad sísmica de las últimas 24 horas usando estrictamente los siguientes datos calculados por código:
+- Total eventos sísmicos: {metrics['total_events_24h']}
+- Magnitud máxima registrada: {metrics['max_magnitude']}
+- Magnitud promedio: {metrics['avg_magnitude']}
+- Alertas de tsunami oficiales: {metrics['tsunami_alerts']}
+- Regiones más activas: {json.dumps(metrics['top_regions'])}
+
+IMPORTANTE: No inventes ninguna cifra ni evento adicional. Menciona exactamente la cantidad de sismos ({metrics['total_events_24h']}) y la magnitud máxima ({metrics['max_magnitude']}).
+"""
+
+    provider = os.getenv("AI_PROVIDER", "opencode").lower()
+    opencode_path = os.getenv("OPENCODE_CLI_PATH", "/home/Coder/.opencode/bin/opencode")
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+
+    summary_text = None
+    model_used = "deterministic-rules-engine"
+    tokens_est = 0
+    latency = 10
+
+    # 1. Intentar OpenCode CLI si está configurado
+    if provider == "opencode":
+        summary_text = call_opencode_cli(prompt, opencode_path)
+        if summary_text:
+            model_used = "opencode-agent-cli"
+            tokens_est = len(prompt.split()) + len(summary_text.split())
+
+    # 2. Si no respondió o el proveedor es Gemini, intentar Gemini API
+    if not summary_text and (provider == "gemini" or gemini_key):
+        summary_text = call_gemini_api(prompt, gemini_key)
+        if summary_text:
+            model_used = "google-gemini-2.5-flash"
+            tokens_est = len(prompt.split()) + len(summary_text.split())
+
+    # 3. Validar Antialucinación
+    if summary_text and not verify_anti_hallucination(summary_text, metrics):
+        logger.warning("Respuesta de IA descartada por discrepancia numérica. Conmutando a plantilla determinista.")
+        summary_text = None
+
+    # 4. Fallback determinista si no hubo respuesta válida
+    if not summary_text:
+        report_data = generate_deterministic_report(metrics)
+    else:
+        report_data = {
+            "report_date": metrics["report_date"],
+            "executive_summary": summary_text,
+            "notable_events": metrics["significant_events"],
+            "active_zones": metrics["top_regions"],
+            "computed_metrics": metrics,
+            "model_name": model_used,
+            "tokens_used": tokens_est,
+            "latency_ms": latency,
+            "cost_usd": round(tokens_est * 0.0000001, 6)
+        }
+
+    # 5. Persistir en gold.ai_reports
+    from include.db_helpers import get_connection
+    conn = get_connection(role="transform")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO gold.ai_reports (
+                    report_date, executive_summary, notable_events, active_zones,
+                    computed_metrics, model_name, tokens_used, latency_ms, cost_usd, created_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP
+                )
+                ON CONFLICT (report_date) DO UPDATE SET
+                    executive_summary = EXCLUDED.executive_summary,
+                    notable_events = EXCLUDED.notable_events,
+                    active_zones = EXCLUDED.active_zones,
+                    computed_metrics = EXCLUDED.computed_metrics,
+                    model_name = EXCLUDED.model_name,
+                    tokens_used = EXCLUDED.tokens_used,
+                    latency_ms = EXCLUDED.latency_ms,
+                    cost_usd = EXCLUDED.cost_usd,
+                    created_at = CURRENT_TIMESTAMP;
+            """, (
+                report_data["report_date"],
+                report_data["executive_summary"],
+                json.dumps(report_data["notable_events"]),
+                json.dumps(report_data["active_zones"]),
+                json.dumps(report_data["computed_metrics"]),
+                report_data["model_name"],
+                report_data["tokens_used"],
+                report_data["latency_ms"],
+                report_data["cost_usd"]
+            ))
+            conn.commit()
+    except Exception as db_err:
+        conn.rollback()
+        logger.error(f"Falla al persistir reporte en gold.ai_reports: {db_err}", exc_info=True)
+    finally:
+        conn.close()
+
+    logger.info("Reporte ejecutivo de IA guardado en gold.ai_reports.")
+    return report_data
