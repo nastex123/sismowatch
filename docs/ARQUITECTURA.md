@@ -41,9 +41,8 @@ flowchart TD
     end
 
     subgraph STORAGE_MEDALLION["Arquitectura Medallón Híbrida"]
-        subgraph BRONZE_TIER["Capa Bronze (Data Lake Crudo)"]
-            BRONZE_FILES["Almacenamiento Local Particionado:\ndata/bronze/year=YYYY/month=MM/day=DD/\n- Payloads GeoJSON inalterados (.jsonl.gz)\n- Metadata de ingesta y hash SHA-256"]
-            BRONZE_TABLE["PostgreSQL: bronze.raw_events\n- id (PK), payload (JSONB), payload_hash\n- ingestion_source, ingested_at"]
+        subgraph BRONZE_TIER["Capa Bronze (Persistencia Cruda Inalterada)"]
+            BRONZE_TABLE["PostgreSQL: bronze.raw_events\n- id (PK), payload (JSONB inalterado), payload_hash\n- ingestion_source, ingested_at"]
         end
 
         subgraph SILVER_TIER["Capa Silver (Procesamiento PySpark & Validación)"]
@@ -88,7 +87,6 @@ flowchart TD
     %% Conexiones
     USGS_FEED --> DAG_INGEST
     USGS_HIST --> DAG_BACKFILL
-    DAG_INGEST --> BRONZE_FILES
     DAG_INGEST --> BRONZE_TABLE
     DAG_INGEST -.->|Dispara| DAG_TRANSFORM
     DAG_TRANSFORM --> SPARK_JOB
