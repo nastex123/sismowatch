@@ -1,6 +1,6 @@
 import React from 'react';
 import { SeismicEvent } from '../types';
-import { Search, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, MapPin } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, MapPin, Waves } from 'lucide-react';
 
 interface EventsTableProps {
   events: SeismicEvent[];
@@ -12,6 +12,8 @@ interface EventsTableProps {
   onMinMagnitudeChange: (mag: number | undefined) => void;
   searchTerm: string;
   onSearchTermChange: (term: string) => void;
+  tsunamiFilter: boolean | undefined;
+  onTsunamiFilterChange: (val: boolean | undefined) => void;
   selectedEvent: SeismicEvent | null;
   onSelectEvent: (event: SeismicEvent) => void;
 }
@@ -26,6 +28,8 @@ export const EventsTable: React.FC<EventsTableProps> = ({
   onMinMagnitudeChange,
   searchTerm,
   onSearchTermChange,
+  tsunamiFilter,
+  onTsunamiFilterChange,
   selectedEvent,
   onSelectEvent,
 }) => {
@@ -71,6 +75,17 @@ export const EventsTable: React.FC<EventsTableProps> = ({
             <option value="5.0">&ge; 5.0 (Fuerte)</option>
             <option value="6.0">&ge; 6.0 (Severo)</option>
           </select>
+
+          {/* Filtro Dual Sismos / Tsunamis */}
+          <select
+            value={tsunamiFilter === undefined ? '' : tsunamiFilter.toString()}
+            onChange={(e) => onTsunamiFilterChange(e.target.value === '' ? undefined : e.target.value === 'true')}
+            className="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-medium"
+          >
+            <option value="">Ambos (Sismos + Tsunamis)</option>
+            <option value="true">🌊 Solo Alertas Tsunami</option>
+            <option value="false">Solo Sismos Estándar</option>
+          </select>
         </div>
       </div>
 
@@ -107,11 +122,11 @@ export const EventsTable: React.FC<EventsTableProps> = ({
                     <td className="py-2.5 px-3 whitespace-nowrap font-mono">{ev.depth_km} km</td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       {ev.tsunami > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30">
-                          <AlertTriangle className="w-3 h-3" /> TSUNAMI
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded border border-cyan-500/80 shadow-sm">
+                          <Waves className="w-3.5 h-3.5 text-cyan-400 animate-pulse" /> ALERTA TSUNAMI
                         </span>
                       ) : (
-                        <span className="text-slate-600 font-mono text-[11px]">Normal</span>
+                        <span className="text-slate-500 font-mono text-[11px]">Sismo Normal</span>
                       )}
                     </td>
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">

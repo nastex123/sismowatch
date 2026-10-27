@@ -231,11 +231,12 @@ def get_kpis(user: dict = Depends(require_viewer)):
 @app.get("/api/events", tags=["Analítica"])
 def get_events(
     page: int = Query(1, ge=1),
-    limit: int = Query(25, ge=1, le=200),
+    limit: int = Query(25, ge=1, le=500),
     min_magnitude: Optional[float] = Query(None),
     region: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
+    tsunami_only: Optional[bool] = Query(None),
     user: dict = Depends(require_viewer)
 ):
     conn = get_db_connection()
@@ -252,6 +253,11 @@ def get_events(
             if region:
                 conditions.append("place ILIKE %s")
                 params.append(f"%{region}%")
+
+            if tsunami_only is True:
+                conditions.append("tsunami > 0")
+            elif tsunami_only is False:
+                conditions.append("tsunami = 0")
 
             if start_date:
                 conditions.append("time_utc >= %s")

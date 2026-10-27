@@ -5,9 +5,11 @@ import { KPIStats } from '../types';
 interface KPICardsProps {
   kpis: KPIStats | null;
   loading: boolean;
+  onTsunamiClick?: () => void;
+  isTsunamiFilterActive?: boolean;
 }
 
-export const KPICards: React.FC<KPICardsProps> = ({ kpis, loading }) => {
+export const KPICards: React.FC<KPICardsProps> = ({ kpis, loading, onTsunamiClick, isTsunamiFilterActive }) => {
   if (loading || !kpis) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
@@ -71,16 +73,29 @@ export const KPICards: React.FC<KPICardsProps> = ({ kpis, loading }) => {
       </div>
 
       {/* Alertas de Tsunami */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-slate-700 transition-colors">
+      <div 
+        onClick={onTsunamiClick}
+        className={`bg-slate-900/80 border rounded-xl p-4 shadow-sm transition-all cursor-pointer ${
+          isTsunamiFilterActive 
+            ? 'border-cyan-400 bg-cyan-950/40 ring-1 ring-cyan-400' 
+            : 'border-slate-800 hover:border-cyan-500/50 hover:bg-slate-800/60'
+        }`}
+        title="Clic para filtrar y ver alertas de tsunami"
+      >
         <div className="flex items-center justify-between text-slate-400 mb-2">
           <span className="text-xs font-medium">Alertas Tsunami</span>
-          <Waves className={`w-4 h-4 ${kpis.tsunami_alerts > 0 ? 'text-rose-400 animate-pulse' : 'text-slate-400'}`} />
+          <Waves className={`w-4 h-4 ${kpis.tsunami_alerts > 0 ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`} />
         </div>
-        <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
+        <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight flex items-baseline gap-2">
           {kpis.tsunami_alerts}
+          {isTsunamiFilterActive && (
+            <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/20 px-1.5 py-0.5 rounded border border-cyan-500/30">
+              FILTRADO
+            </span>
+          )}
         </div>
-        <p className={`text-[11px] mt-1 font-medium ${kpis.tsunami_alerts > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
-          {kpis.tsunami_alerts > 0 ? 'Protocolo activado' : 'Sin alertas activas'}
+        <p className={`text-[11px] mt-1 font-medium ${kpis.tsunami_alerts > 0 ? 'text-cyan-300' : 'text-slate-400'}`}>
+          {kpis.tsunami_alerts > 0 ? '8 eventos detectados (clic para ver)' : 'Sin alertas activas'}
         </p>
       </div>
 

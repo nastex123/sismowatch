@@ -35,6 +35,7 @@ export const App: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [minMagnitude, setMinMagnitude] = useState<number | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
+  const [tsunamiFilter, setTsunamiFilter] = useState<boolean | undefined>(undefined);
   const [selectedEvent, setSelectedEvent] = useState<SeismicEvent | null>(null);
 
   // Estado SSE en Vivo
@@ -57,7 +58,7 @@ export const App: React.FC = () => {
     if (session) {
       loadEvents();
     }
-  }, [page, minMagnitude, searchTerm]);
+  }, [page, minMagnitude, searchTerm, tsunamiFilter]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -65,7 +66,7 @@ export const App: React.FC = () => {
     try {
       const [kpisData, eventsData, tsData, repData, pipeData] = await Promise.all([
         apiService.getKPIs().catch(() => null),
-        apiService.getEvents({ page: 1, limit: 100, min_magnitude: minMagnitude, region: searchTerm }).catch(() => ({ items: [], total_records: 0, total_pages: 1 })),
+        apiService.getEvents({ page: 1, limit: 100, min_magnitude: minMagnitude, region: searchTerm, tsunami_only: tsunamiFilter }).catch(() => ({ items: [], total_records: 0, total_pages: 1 })),
         apiService.getTimeseries(30).catch(() => []),
         apiService.getReports().catch(() => []),
         apiService.getPipelineStatus().catch(() => null)
@@ -89,7 +90,7 @@ export const App: React.FC = () => {
 
   const loadEvents = async () => {
     try {
-      const data = await apiService.getEvents({ page, limit: 100, min_magnitude: minMagnitude, region: searchTerm });
+      const data = await apiService.getEvents({ page, limit: 100, min_magnitude: minMagnitude, region: searchTerm, tsunami_only: tsunamiFilter });
       setEvents(data.items);
       setTotalRecords(data.total_records);
       setTotalPages(data.total_pages);
@@ -185,7 +186,15 @@ export const App: React.FC = () => {
         {/* Vista 1: Dashboard de Operaciones */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <KPICards kpis={kpis} loading={loading} />
+            <KPICards 
+              kpis={kpis} 
+              loading={loading} 
+              onTsunamiClick={() => {
+                setTsunamiFilter((prev) => (prev === true ? undefined : true));
+                setPage(1);
+              }}
+              isTsunamiFilterActive={tsunamiFilter === true}
+            />
 
             {/* Mapa Interactivo de Monitoreo */}
             <div className="w-full">
@@ -214,6 +223,11 @@ export const App: React.FC = () => {
               searchTerm={searchTerm}
               onSearchTermChange={(s) => {
                 setSearchTerm(s);
+                setPage(1);
+              }}
+              tsunamiFilter={tsunamiFilter}
+              onTsunamiFilterChange={(t) => {
+                setTsunamiFilter(t);
                 setPage(1);
               }}
               selectedEvent={selectedEvent}

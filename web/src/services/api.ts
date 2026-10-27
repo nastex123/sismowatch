@@ -43,12 +43,13 @@ export const apiService = {
     return res.json();
   },
 
-  async getEvents(params: { page?: number; limit?: number; min_magnitude?: number; region?: string }): Promise<{ items: SeismicEvent[]; total_records: number; total_pages: number }> {
+  async getEvents(params: { page?: number; limit?: number; min_magnitude?: number; region?: string; tsunami_only?: boolean }): Promise<{ items: SeismicEvent[]; total_records: number; total_pages: number }> {
     const query = new URLSearchParams();
     if (params.page) query.append('page', params.page.toString());
     if (params.limit) query.append('limit', params.limit.toString());
     if (params.min_magnitude !== undefined && params.min_magnitude !== null) query.append('min_magnitude', params.min_magnitude.toString());
     if (params.region) query.append('region', params.region);
+    if (params.tsunami_only !== undefined && params.tsunami_only !== null) query.append('tsunami_only', params.tsunami_only.toString());
 
     const res = await fetch(`${API_BASE}/events?${query.toString()}`, { headers: this.getAuthHeaders() });
     if (!res.ok) throw new Error('Error al cargar eventos');
