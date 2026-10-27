@@ -22,6 +22,28 @@ services:
       retries: 10
 
   # ----------------------------------------------------------------------------
+  # 1.1 MinIO S3 Object Storage (Capa Bronze No Relacional)
+  # ----------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: sismowatch-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-sismowatch_minio_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-SismoMinioPass2026!}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
   # 2. Inicializador de Apache Airflow
   # ----------------------------------------------------------------------------
   airflow-init:
@@ -51,6 +73,12 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-opencode}
       OPENCODE_CLI_PATH: ${OPENCODE_CLI_PATH:-/home/Coder/.opencode/bin/opencode}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Configuración MinIO S3 (Capa Bronze)
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-sismowatch_minio_admin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-SismoMinioPass2026!}
+      MINIO_BRONZE_BUCKET: ${MINIO_BRONZE_BUCKET:-sismowatch-bronze}
+      MINIO_SECURE: "false"
     volumes: &airflow-common-volumes
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/include:/opt/airflow/include
@@ -144,6 +172,12 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-opencode}
       OPENCODE_CLI_PATH: ${OPENCODE_CLI_PATH:-/home/Coder/.opencode/bin/opencode}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Configuración MinIO S3 (Capa Bronze)
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-sismowatch_minio_admin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-SismoMinioPass2026!}
+      MINIO_BRONZE_BUCKET: ${MINIO_BRONZE_BUCKET:-sismowatch-bronze}
+      MINIO_SECURE: "false"
     volumes:
       - ./api:/app
       - /home/Coder/.opencode:/home/Coder/.opencode:ro
@@ -173,4 +207,6 @@ services:
 
 volumes:
   pg_data:
+    driver: local
+  minio_data:
     driver: local
