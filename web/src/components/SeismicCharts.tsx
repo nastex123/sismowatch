@@ -14,12 +14,10 @@ import {
   ZAxis,
   LineChart,
   Line,
-  PieChart,
-  Pie,
   Cell
 } from 'recharts';
 import { TimeseriesPoint, SeismicEvent, TimeRange } from '../types';
-import { TrendingUp, BarChart3, Activity, Zap, PieChart as PieIcon, Clock } from 'lucide-react';
+import { TrendingUp, BarChart3, Activity, Zap, Clock } from 'lucide-react';
 
 interface SeismicChartsProps {
   timeseries: TimeseriesPoint[];
@@ -83,17 +81,7 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
     });
   }, [events]);
 
-  // 4. Proporción Alertas Tsunami vs Sismos Estándar
-  const tsunamiRatioData = useMemo(() => {
-    const tsunamis = events.filter((e) => e.tsunami > 0).length;
-    const regulars = Math.max(0, events.length - tsunamis);
-    return [
-      { name: 'Sismos Estándar', value: regulars, color: '#27272a' },
-      { name: 'Alertas Tsunami', value: tsunamis, color: '#f43f5e' }
-    ];
-  }, [events]);
-
-  // 5. Patrón Circadiano de Actividad (00h a 23h UTC)
+  // 4. Patrón Circadiano de Actividad (00h a 23h UTC)
   const circadianData = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, i) => ({
       hour: `${i.toString().padStart(2, '0')}h`,
@@ -126,8 +114,8 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-      {/* Gráfico 1: Serie Temporal de Frecuencia Sísmica */}
-      <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
+      {/* Gráfico 1: Serie Temporal de Frecuencia Sísmica (Widescreen col-span-2) */}
+      <div className="lg:col-span-2 bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
@@ -258,41 +246,7 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
         </div>
       </div>
 
-      {/* Gráfico 5: Donut de Alertas Tsunami vs Estándar */}
-      <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
-        <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
-          <div className="flex items-center gap-2">
-            <PieIcon className="w-3.5 h-3.5 text-zinc-400" />
-            <h3 className="text-xs font-mono font-bold text-zinc-100 tracking-wide uppercase">Riesgo Tsunami vs Regular</h3>
-          </div>
-          <span className="text-[10px] font-mono text-zinc-400 border-b border-zinc-700 pb-0.5">Proporción</span>
-        </div>
-        <div className="h-48 w-full flex items-center justify-center">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={tsunamiRatioData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={46}
-                outerRadius={68}
-                paddingAngle={4}
-                stroke="#09090b"
-                strokeWidth={2}
-              >
-                {tsunamiRatioData.map((entry, index) => (
-                  <Cell key={`donut-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={tooltipStyle} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Gráfico 6: Patrón Circadiano de Monitoreo (00h a 23h UTC) */}
+      {/* Gráfico 5: Patrón Circadiano de Monitoreo (00h a 23h UTC) */}
       <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">

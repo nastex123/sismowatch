@@ -150,11 +150,17 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
         style={{ height: '100%', width: '100%', minHeight: '450px' }}
         className="w-full h-full"
       >
+        {/* Capa Base: Continentes y Océanos en escala de grises oscuros de Esri (Sin API key requerida) */}
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
-          url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png"
-          subdomains="abcd"
-          maxZoom={18}
+          attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; OpenStreetMap'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+          maxZoom={16}
+        />
+        {/* Capa de Referencia: Límites internacionales y etiquetas geográficas */}
+        <TileLayer
+          attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+          maxZoom={16}
         />
 
         <MapResizeHandler />
