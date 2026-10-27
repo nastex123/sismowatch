@@ -40,7 +40,9 @@ with DAG(
 ) as dag:
 
     def generate_report_task(**context):
-        report = generate_and_save_ai_report()
+        exec_date = context.get("execution_date") or context.get("data_interval_end")
+        target_date = exec_date.date() if exec_date else None
+        report = generate_and_save_ai_report(target_date)
         return f"Reporte IA generado exitosamente para fecha: {report.get('report_date')}"
 
     task_generate_ai_report = PythonOperator(

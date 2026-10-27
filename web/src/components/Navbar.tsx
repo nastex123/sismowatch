@@ -1,11 +1,13 @@
 import React from 'react';
-import { Activity, Shield, LogOut, FileText, Database, LayoutDashboard } from 'lucide-react';
-import { UserSession } from '../types';
+import { Activity, Shield, LogOut, FileText, Database, LayoutDashboard, Calendar } from 'lucide-react';
+import { UserSession, TimeRange } from '../types';
 
 interface NavbarProps {
   session: UserSession;
   activeTab: 'dashboard' | 'reports' | 'pipeline';
   setActiveTab: (tab: 'dashboard' | 'reports' | 'pipeline') => void;
+  timeRange?: TimeRange;
+  onTimeRangeChange?: (range: TimeRange) => void;
   isLiveConnected: boolean;
   lastLiveUpdate: string | null;
   onLogout: () => void;
@@ -16,9 +18,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   session,
   activeTab,
   setActiveTab,
+  timeRange = '30d',
+  onTimeRangeChange = () => {},
   isLiveConnected,
   lastLiveUpdate,
   onLogout,
+  onOpenChat,
 }) => {
   return (
     <header className="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-zinc-900 px-4 lg:px-8 py-3">
@@ -39,8 +44,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Navigation Tabs - Estilo Terminal Minimalista (Sin cajas redondeadas) */}
-        <nav className="flex items-center gap-6">
+        {/* Navigation Tabs - Estilo Terminal Minimalista */}
+        <nav className="flex items-center gap-5">
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`flex items-center gap-2 py-2 text-xs font-mono transition-all press-action border-b-2 ${
@@ -76,8 +81,49 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </nav>
 
-        {/* Status Live & User Profile */}
-        <div className="flex items-center gap-4">
+        {/* Selector Global de Ventana Temporal (24h / 7d / 30d) & Telemetría */}
+        <div className="flex items-center gap-3">
+          {/* Segmented Control de Tiempo */}
+          <div className="flex items-center bg-zinc-950 border border-zinc-850 rounded p-0.5 font-mono text-[11px]">
+            <span className="hidden md:flex items-center gap-1 pl-1.5 pr-2 text-zinc-500 border-r border-zinc-850 mr-0.5">
+              <Calendar className="w-3 h-3 text-rose-400" />
+              <span>Rango:</span>
+            </span>
+            <button
+              onClick={() => onTimeRangeChange('24h')}
+              className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                timeRange === '24h'
+                  ? 'bg-zinc-900 text-rose-400 border border-rose-500/50 shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="Últimas 24 Horas"
+            >
+              24H
+            </button>
+            <button
+              onClick={() => onTimeRangeChange('7d')}
+              className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                timeRange === '7d'
+                  ? 'bg-zinc-900 text-rose-400 border border-rose-500/50 shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="Última Semana (7 Días)"
+            >
+              7D
+            </button>
+            <button
+              onClick={() => onTimeRangeChange('30d')}
+              className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                timeRange === '30d'
+                  ? 'bg-zinc-900 text-rose-400 border border-rose-500/50 shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="Último Mes (30 Días)"
+            >
+              30D
+            </button>
+          </div>
+
           {/* Live SSE Telemetría Directa */}
           <div className="flex items-center gap-2 text-xs font-mono">
             <span className="relative flex h-2 w-2">
@@ -89,17 +135,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className={`text-[11px] font-mono ${isLiveConnected ? 'text-zinc-200' : 'text-zinc-500'} hidden xl:inline`}>
               {isLiveConnected ? 'EN VIVO' : 'RECONECTANDO'}
             </span>
-            {lastLiveUpdate && (
-              <span className="text-[10px] text-zinc-500 hidden sm:inline">
-                {new Date(lastLiveUpdate).toLocaleTimeString()}
-              </span>
-            )}
           </div>
 
           {/* User Profile */}
-          <div className="flex items-center gap-3 pl-3 border-l border-zinc-850">
+          <div className="flex items-center gap-3 pl-2 border-l border-zinc-850">
             <div className="hidden lg:block text-right">
-              <div className="text-xs font-medium text-zinc-200 truncate max-w-[140px]">{session.full_name}</div>
+              <div className="text-xs font-medium text-zinc-200 truncate max-w-[130px]">{session.full_name}</div>
               <div className="flex items-center justify-end gap-1 text-[10px] uppercase font-mono">
                 <Shield className="w-2.5 h-2.5 text-rose-400" />
                 <span className="border-b border-zinc-700 text-zinc-400 pb-0.5">

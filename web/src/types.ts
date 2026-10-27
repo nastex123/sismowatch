@@ -1,3 +1,5 @@
+export type TimeRange = '24h' | '7d' | '30d';
+
 export interface UserSession {
   token: string;
   email: string;
@@ -7,12 +9,14 @@ export interface UserSession {
 
 export interface KPIStats {
   events_24h: number;
+  events_count?: number;
   max_magnitude: number;
   avg_magnitude: number;
   tsunami_alerts: number;
   quality_score: number;
   last_event_time: string | null;
   last_updated_at: string;
+  time_range?: TimeRange;
 }
 
 export interface SeismicEvent {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserSession, KPIStats, SeismicEvent, TimeseriesPoint, AIReport, PipelineStatus } from './types';
+import { UserSession, KPIStats, SeismicEvent, TimeseriesPoint, AIReport, PipelineStatus, TimeRange } from './types';
 import { apiService } from './services/api';
 import { Navbar } from './components/Navbar';
 import { KPICards } from './components/KPICards';
@@ -20,6 +20,7 @@ export const App: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'reports' | 'pipeline'>('dashboard');
+  const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [kpis, setKpis] = useState<KPIStats | null>(null);
   const [events, setEvents] = useState<SeismicEvent[]>([]);
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([]);
@@ -45,31 +46,31 @@ export const App: React.FC = () => {
   // Chatbot
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Cargar datos iniciales al autenticar
+  // Cargar datos iniciales al autenticar o cambiar timeRange
   useEffect(() => {
     if (session) {
       loadAllData();
       initSSE();
     }
-  }, [session]);
+  }, [session, timeRange]);
 
   // Recargar eventos cuando cambian los filtros
   useEffect(() => {
     if (session) {
       loadEvents();
     }
-  }, [page, minMagnitude, searchTerm, tsunamiFilter]);
+  }, [page, minMagnitude, searchTerm, tsunamiFilter, timeRange]);
 
   const loadAllData = async () => {
     setLoading(true);
     setError(null);
     try {
       const [kpisData, eventsData, tsData, repData, pipeData] = await Promise.all([
-        apiService.getKPIs().catch(() => null),
-        apiService.getEvents({ page: 1, limit: 100, min_magnitude: minMagnitude, region: searchTerm, tsunami_only: tsunamiFilter }).catch(() => ({ items: [], total_records: 0, total_pages: 1 })),
-        apiService.getTimeseries(30).catch(() => []),
-        apiService.getReports().catch(() => []),
-        apiService.getPipelineStatus().catch(() => null)
+        apiService.getKPIs(timeRange).catch(() => null),
+        apiService.getEvents({ page: 1, limit: 100, min_magnitude: minMagnitude, region: searchTerm, tsunami_only: tsunamiFilter, time_range: timeRange }).catch(() => ({ items: [], total_records: 0, total_pages: 1 })),
+        apiService.getTimeseries(timeRange).catch(() => []),
+        apiService.getReports(timeRange).catch(() => []),
+        apiService.getPipelineStatus(timeRange).catch(() => null)
       ]);
 
       if (kpisData) setKpis(kpisData);
@@ -90,7 +91,7 @@ export const App: React.FC = () => {
 
   const loadEvents = async () => {
     try {
-      const data = await apiService.getEvents({ page, limit: 100, min_magnitude: minMagnitude, region: searchTerm, tsunami_only: tsunamiFilter });
+      const data = await apiService.getEvents({ page, limit: 100, min_magnitude: minMagnitude, region: searchTerm, tsunami_only: tsunamiFilter, time_range: timeRange });
       setEvents(data.items);
       setTotalRecords(data.total_records);
       setTotalPages(data.total_pages);
@@ -176,6 +177,8 @@ export const App: React.FC = () => {
         session={session}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
         isLiveConnected={isLiveConnected}
         lastLiveUpdate={lastLiveUpdate}
         onLogout={handleLogout}

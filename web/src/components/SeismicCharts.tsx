@@ -18,15 +18,22 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { TimeseriesPoint, SeismicEvent } from '../types';
+import { TimeseriesPoint, SeismicEvent, TimeRange } from '../types';
 import { TrendingUp, BarChart3, Activity, Zap, PieChart as PieIcon, Clock } from 'lucide-react';
 
 interface SeismicChartsProps {
   timeseries: TimeseriesPoint[];
   events: SeismicEvent[];
+  timeRange?: TimeRange;
+  onTimeRangeChange?: (range: TimeRange) => void;
 }
 
-export const SeismicCharts: React.FC<SeismicChartsProps> = ({ timeseries, events }) => {
+export const SeismicCharts: React.FC<SeismicChartsProps> = ({
+  timeseries,
+  events,
+  timeRange = '7d',
+  onTimeRangeChange
+}) => {
   // 1. Distribución de magnitudes
   const magnitudeBins = useMemo(() => {
     const bins = [
@@ -124,9 +131,36 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({ timeseries, events
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
-            <h3 className="text-xs font-mono font-bold text-zinc-100 tracking-wide uppercase">Frecuencia Sísmica (Hora)</h3>
+            <h3 className="text-xs font-mono font-bold text-zinc-100 tracking-wide uppercase">Frecuencia Sísmica</h3>
           </div>
-          <span className="text-[10px] font-mono text-rose-400 border-b border-rose-500/50 pb-0.5">30 Días</span>
+          <div className="flex items-center gap-1.5">
+            {onTimeRangeChange ? (
+              <div className="flex bg-black border border-zinc-850 rounded p-0.5 text-[10px] font-mono">
+                <button
+                  onClick={() => onTimeRangeChange('24h')}
+                  className={`px-1.5 py-0.2 rounded transition-all press-action ${timeRange === '24h' ? 'bg-zinc-900 text-rose-400 font-bold border border-rose-500/40' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  24H
+                </button>
+                <button
+                  onClick={() => onTimeRangeChange('7d')}
+                  className={`px-1.5 py-0.2 rounded transition-all press-action ${timeRange === '7d' ? 'bg-zinc-900 text-rose-400 font-bold border border-rose-500/40' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  7D
+                </button>
+                <button
+                  onClick={() => onTimeRangeChange('30d')}
+                  className={`px-1.5 py-0.2 rounded transition-all press-action ${timeRange === '30d' ? 'bg-zinc-900 text-rose-400 font-bold border border-rose-500/40' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  30D
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] font-mono text-rose-400 border-b border-rose-500/50 pb-0.5">
+                {timeRange === '24h' ? '24 Horas' : timeRange === '7d' ? '7 Días' : '30 Días'}
+              </span>
+            )}
+          </div>
         </div>
         <div className="h-48 w-full">
           {formattedTimeseries.length > 0 ? (

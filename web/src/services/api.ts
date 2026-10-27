@@ -1,4 +1,4 @@
-import { UserSession, KPIStats, SeismicEvent, TimeseriesPoint, AIReport, PipelineStatus, QuarantineRecord } from '../types';
+import { UserSession, KPIStats, SeismicEvent, TimeseriesPoint, AIReport, PipelineStatus, QuarantineRecord, TimeRange } from '../types';
 
 const API_BASE = '/api';
 const AUTH_BASE = '/auth';
@@ -37,39 +37,57 @@ export const apiService = {
     };
   },
 
-  async getKPIs(): Promise<KPIStats> {
-    const res = await fetch(`${API_BASE}/kpis`, { headers: this.getAuthHeaders() });
+  async getKPIs(timeRange: TimeRange = '24h'): Promise<KPIStats> {
+    const res = await fetch(`${API_BASE}/kpis?time_range=${timeRange}`, { headers: this.getAuthHeaders() });
     if (!res.ok) throw new Error('Error al obtener KPIs');
     return res.json();
   },
 
-  async getEvents(params: { page?: number; limit?: number; min_magnitude?: number; region?: string; tsunami_only?: boolean }): Promise<{ items: SeismicEvent[]; total_records: number; total_pages: number }> {
+  async getEvents(params: {
+    page?: number;
+    limit?: number;
+    min_magnitude?: number;
+    region?: string;
+    tsunami_only?: boolean;
+    time_range?: TimeRange;
+  }): Promise<{ items: SeismicEvent[]; total_records: number; total_pages: number }> {
     const query = new URLSearchParams();
     if (params.page) query.append('page', params.page.toString());
     if (params.limit) query.append('limit', params.limit.toString());
     if (params.min_magnitude !== undefined && params.min_magnitude !== null) query.append('min_magnitude', params.min_magnitude.toString());
     if (params.region) query.append('region', params.region);
     if (params.tsunami_only !== undefined && params.tsunami_only !== null) query.append('tsunami_only', params.tsunami_only.toString());
+    if (params.time_range) query.append('time_range', params.time_range);
 
     const res = await fetch(`${API_BASE}/events?${query.toString()}`, { headers: this.getAuthHeaders() });
     if (!res.ok) throw new Error('Error al cargar eventos');
     return res.json();
   },
 
-  async getTimeseries(days: number = 7): Promise<TimeseriesPoint[]> {
-    const res = await fetch(`${API_BASE}/stats/timeseries?days=${days}`, { headers: this.getAuthHeaders() });
+  async getTimeseries(timeRangeOrDays: TimeRange | number = '7d', days?: number): Promise<TimeseriesPoint[]> {
+    let param = '';
+    if (typeof timeRangeOrDays === 'number') {
+      param = `days=${timeRangeOrDays}`;
+    } else if (timeRangeOrDays) {
+      param = `time_range=${timeRangeOrDays}`;
+    } else {
+      param = `days=${days || 7}`;
+    }
+    const res = await fetch(`${API_BASE}/stats/timeseries?${param}`, { headers: this.getAuthHeaders() });
     if (!res.ok) throw new Error('Error al obtener series temporales');
     return res.json();
   },
 
-  async getReports(): Promise<AIReport[]> {
-    const res = await fetch(`${API_BASE}/reports`, { headers: this.getAuthHeaders() });
+  async getReports(timeRange?: TimeRange): Promise<AIReport[]> {
+    const param = timeRange ? `?time_range=${timeRange}` : '';
+    const res = await fetch(`${API_BASE}/reports${param}`, { headers: this.getAuthHeaders() });
     if (!res.ok) throw new Error('Error al obtener reportes');
     return res.json();
   },
 
-  async getPipelineStatus(): Promise<PipelineStatus> {
-    const res = await fetch(`${API_BASE}/pipeline/status`, { headers: this.getAuthHeaders() });
+  async getPipelineStatus(timeRange?: TimeRange): Promise<PipelineStatus> {
+    const param = timeRange ? `?time_range=${timeRange}` : '';
+    const res = await fetch(`${API_BASE}/pipeline/status${param}`, { headers: this.getAuthHeaders() });
     if (!res.ok) throw new Error('Error al obtener estado del pipeline');
     return res.json();
   },

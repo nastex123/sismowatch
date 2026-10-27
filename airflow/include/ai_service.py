@@ -18,11 +18,14 @@ def sanitize_text(text: str) -> str:
     cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
     return cleaned.strip()
 
-def get_gold_computed_metrics() -> Dict[str, Any]:
+def get_gold_computed_metrics(target_date: Optional[datetime.date] = None) -> Dict[str, Any]:
     from include.db_helpers import get_connection
     conn = get_connection(role="transform")
+    if target_date is None:
+        target_date = datetime.date.today()
+
     metrics = {
-        "report_date": datetime.date.today().isoformat(),
+        "report_date": target_date.isoformat(),
         "total_events_24h": 0,
         "max_magnitude": 0.0,
         "avg_magnitude": 0.0,
@@ -32,25 +35,43 @@ def get_gold_computed_metrics() -> Dict[str, Any]:
     }
     try:
         with conn.cursor() as cur:
-            # KPIs de 24h
-            cur.execute("""
-                SELECT events_24h, max_magnitude, avg_magnitude, tsunami_alerts 
-                FROM gold.kpis_24h 
-                ORDER BY last_updated_at DESC LIMIT 1;
-            """)
-            kpi_row = cur.fetchone()
-            if kpi_row:
-                metrics["total_events_24h"] = int(kpi_row[0] or 0)
-                metrics["max_magnitude"] = float(kpi_row[1] or 0.0)
-                metrics["avg_magnitude"] = float(kpi_row[2] or 0.0)
-                metrics["tsunami_alerts"] = int(kpi_row[3] or 0)
+            is_today = (target_date == datetime.date.today())
+            if is_today:
+                # KPIs consolidados en tiempo real para el día actual
+                cur.execute("""
+                    SELECT events_24h, max_magnitude, avg_magnitude, tsunami_alerts 
+                    FROM gold.kpis_24h 
+                    ORDER BY last_updated_at DESC LIMIT 1;
+                """)
+                kpi_row = cur.fetchone()
+                if kpi_row and kpi_row[0]:
+                    metrics["total_events_24h"] = int(kpi_row[0] or 0)
+                    metrics["max_magnitude"] = float(kpi_row[1] or 0.0)
+                    metrics["avg_magnitude"] = float(kpi_row[2] or 0.0)
+                    metrics["tsunami_alerts"] = int(kpi_row[3] or 0)
 
-            # Top 3 regiones activas
+            # Si no hubo fila en KPIs o es un día anterior, calcular directo de silver.events
+            if metrics["total_events_24h"] == 0:
+                cur.execute("""
+                    SELECT COUNT(*), COALESCE(MAX(mag), 0.0), COALESCE(ROUND(AVG(mag)::numeric, 2), 0.0), COALESCE(SUM(tsunami), 0)
+                    FROM silver.events
+                    WHERE DATE(time_utc) = %s;
+                """, (target_date,))
+                calc_row = cur.fetchone()
+                if calc_row:
+                    metrics["total_events_24h"] = int(calc_row[0] or 0)
+                    metrics["max_magnitude"] = float(calc_row[1] or 0.0)
+                    metrics["avg_magnitude"] = float(calc_row[2] or 0.0)
+                    metrics["tsunami_alerts"] = int(calc_row[3] or 0)
+
+            # Top 3 regiones activas para el día
             cur.execute("""
-                SELECT region_name, event_count, max_magnitude 
-                FROM gold.active_regions 
-                ORDER BY event_count DESC LIMIT 3;
-            """)
+                SELECT COALESCE(NULLIF(place, ''), 'Zona Indefinida') as reg, COUNT(*) as cnt, MAX(mag) as mm
+                FROM silver.events 
+                WHERE DATE(time_utc) = %s
+                GROUP BY reg
+                ORDER BY cnt DESC LIMIT 3;
+            """, (target_date,))
             for r in cur.fetchall():
                 metrics["top_regions"].append({
                     "region": sanitize_text(r[0]),
@@ -58,14 +79,13 @@ def get_gold_computed_metrics() -> Dict[str, Any]:
                     "max_mag": float(r[2] or 0.0)
                 })
 
-            # Eventos más significativos (mag >= 4.0 o tsunami)
+            # Eventos más significativos del día (o top sismos)
             cur.execute("""
                 SELECT id, mag, place, time_utc, depth_km, tsunami 
                 FROM silver.events 
-                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '30 days' 
-                  AND (mag >= 4.0 OR tsunami > 0)
+                WHERE DATE(time_utc) = %s
                 ORDER BY mag DESC LIMIT 5;
-            """)
+            """, (target_date,))
             for ev in cur.fetchall():
                 metrics["significant_events"].append({
                     "id": ev[0],
@@ -114,15 +134,28 @@ def call_opencode_cli(prompt: str, opencode_path: str = "/home/Coder/.opencode/b
     try:
         start = time.time()
         logger.info("Invocando agente OpenCode CLI...")
-        result = subprocess.run(
-            [opencode_path, "run", "--pure", prompt],
-            capture_output=True,
-            text=True,
-            timeout=25
-        )
+        attach_url = os.getenv("OPENCODE_ATTACH_URL", "http://172.24.0.1:4096")
+        
+        # 1. Intentar con attach al servidor OpenCode (puerto 4096)
+        cmd = [opencode_path, "run", "--attach", attach_url, "--pure", prompt]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
+
+        # 2. Si no tuvo éxito el attach, intentar en modo directo
+        if result.returncode != 0 or not result.stdout.strip():
+            logger.warning(f"OpenCode attach falló (rc={result.returncode}), intentando directo...")
+            cmd_direct = [opencode_path, "run", "--pure", prompt]
+            result = subprocess.run(cmd_direct, capture_output=True, text=True, timeout=25)
+
         latency = int((time.time() - start) * 1000)
         if result.returncode == 0 and result.stdout.strip():
-            logger.info(f"OpenCode CLI respondió exitosamente en {latency} ms.")
+            lines = [
+                line for line in result.stdout.splitlines()
+                if not line.strip().startswith(("> build", ">", "$ ", "✱ ", "→ ", "◈ "))
+            ]
+            clean_text = "\n".join(lines).strip()
+            if clean_text:
+                logger.info(f"OpenCode CLI respondió exitosamente en {latency} ms.")
+                return clean_text
             return result.stdout.strip()
         else:
             logger.warning(f"OpenCode CLI finalizó con código {result.returncode}: {result.stderr}")
@@ -153,25 +186,26 @@ def verify_anti_hallucination(summary_text: str, metrics: Dict[str, Any]) -> boo
     """Verifica que las cifras clave calculadas estén presentes en el texto y no se inventen magnitudes."""
     total = str(metrics["total_events_24h"])
     max_m = f"{metrics['max_magnitude']:.1f}"
+    max_m_alt = f"{metrics['max_magnitude']}"
     
-    # Si hay sismos registrados, verificar que el máximo figure en el texto
-    if metrics["total_events_24h"] > 0 and metrics["max_magnitude"] > 0:
-        if max_m not in summary_text and str(metrics["max_magnitude"]) not in summary_text:
-            logger.warning(f"Control Antialucinación activado: Magnitud máxima calculada ({max_m}) no coincide en el texto.")
+    # Si hay sismos registrados, verificar que el total o el máximo figuren en el texto
+    if metrics["total_events_24h"] > 0:
+        if total not in summary_text and max_m not in summary_text and max_m_alt not in summary_text:
+            logger.warning(f"Control Antialucinación activado: Ni total ({total}) ni máx ({max_m}) figuran en el texto.")
             return False
     return True
 
-def generate_and_save_ai_report() -> Dict[str, Any]:
-    metrics = get_gold_computed_metrics()
+def generate_and_save_ai_report(target_date: Optional[datetime.date] = None) -> Dict[str, Any]:
+    metrics = get_gold_computed_metrics(target_date)
     prompt = f"""
-Eres el analista geofísico principal de SismoWatch. Redacta un resumen ejecutivo formal de 1 párrafo sobre la actividad sísmica consolidada (últimos 30 días) usando estrictamente los siguientes datos calculados por código:
-- Total eventos sísmicos: {metrics['total_events_24h']}
+Eres el analista geofísico principal de SismoWatch. Redacta un reporte ejecutivo diario formal de 1 párrafo para la fecha {metrics['report_date']} usando estrictamente los siguientes datos calculados por código:
+- Total eventos sísmicos en 24h: {metrics['total_events_24h']}
 - Magnitud máxima registrada: {metrics['max_magnitude']}
 - Magnitud promedio: {metrics['avg_magnitude']}
 - Alertas de tsunami oficiales: {metrics['tsunami_alerts']}
 - Regiones más activas: {json.dumps(metrics['top_regions'])}
 
-IMPORTANTE: No inventes ninguna cifra ni evento adicional. Menciona exactamente la cantidad de sismos ({metrics['total_events_24h']}) y la magnitud máxima ({metrics['max_magnitude']}).
+IMPORTANTE: No inventes ninguna cifra ni evento adicional. Menciona explícitamente la cantidad de sismos ({metrics['total_events_24h']}) y la magnitud máxima ({metrics['max_magnitude']}).
 """
 
     provider = os.getenv("AI_PROVIDER", "opencode").lower()
@@ -187,7 +221,7 @@ IMPORTANTE: No inventes ninguna cifra ni evento adicional. Menciona exactamente 
     if provider == "opencode":
         summary_text = call_opencode_cli(prompt, opencode_path)
         if summary_text:
-            model_used = "opencode-agent-cli"
+            model_used = "opencode-agent-cli (deepseek-v4.1)"
             tokens_est = len(prompt.split()) + len(summary_text.split())
 
     # 2. Si no respondió o el proveedor es Gemini, intentar Gemini API

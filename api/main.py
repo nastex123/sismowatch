@@ -218,28 +218,43 @@ def login(creds: LoginRequest):
 # Endpoints de Datos Analíticos (Viewer / Admin)
 # ------------------------------------------------------------------------------
 @app.get("/api/kpis", tags=["Analítica"])
-def get_kpis(user: dict = Depends(require_viewer)):
+def get_kpis(
+    time_range: str = Query("24h", pattern="^(24h|7d|30d)$"),
+    user: dict = Depends(require_viewer)
+):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT events_24h, max_magnitude, avg_magnitude, tsunami_alerts, 
-                       quality_score, last_event_time, last_updated_at 
-                FROM gold.kpis_24h 
-                ORDER BY last_updated_at DESC LIMIT 1;
+            interval_str = "24 hours" if time_range == "24h" else ("7 days" if time_range == "7d" else "30 days")
+            cur.execute(f"""
+                SELECT 
+                    COUNT(*)::int as events_count,
+                    COALESCE(MAX(mag), 0.0)::float as max_magnitude,
+                    COALESCE(ROUND(AVG(mag)::numeric, 2), 0.0)::float as avg_magnitude,
+                    COALESCE(COUNT(*) FILTER (WHERE tsunami > 0), 0)::int as tsunami_alerts,
+                    MAX(time_utc) as last_event_time
+                FROM silver.events
+                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '{interval_str}';
             """)
-            row = cur.fetchone()
-            if not row:
-                return {
-                    "events_24h": 0,
-                    "max_magnitude": 0.0,
-                    "avg_magnitude": 0.0,
-                    "tsunami_alerts": 0,
-                    "quality_score": 100.0,
-                    "last_event_time": None,
-                    "last_updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
-                }
-            return dict(row)
+            stats = cur.fetchone() or {}
+
+            # Obtener SLA de calidad del lote más reciente
+            cur.execute("SELECT quality_score FROM silver.quality_metrics ORDER BY executed_at DESC LIMIT 1;")
+            q_row = cur.fetchone()
+            q_score = float(q_row["quality_score"]) if q_row else 100.0
+
+            count = stats.get("events_count", 0) or 0
+            return {
+                "events_24h": count,
+                "events_count": count,
+                "max_magnitude": stats.get("max_magnitude", 0.0) or 0.0,
+                "avg_magnitude": stats.get("avg_magnitude", 0.0) or 0.0,
+                "tsunami_alerts": stats.get("tsunami_alerts", 0) or 0,
+                "quality_score": q_score,
+                "last_event_time": stats.get("last_event_time"),
+                "last_updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "time_range": time_range
+            }
     finally:
         conn.close()
 
@@ -252,6 +267,7 @@ def get_events(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     tsunami_only: Optional[bool] = Query(None),
+    time_range: Optional[str] = Query(None, pattern="^(24h|7d|30d)$"),
     user: dict = Depends(require_viewer)
 ):
     conn = get_db_connection()
@@ -260,6 +276,14 @@ def get_events(
         with conn.cursor() as cur:
             conditions = ["1=1"]
             params = []
+
+            # Filtro por ventana temporal rápida (24h, 7d, 30d)
+            if time_range == "24h":
+                conditions.append("time_utc >= CURRENT_TIMESTAMP - INTERVAL '24 hours'")
+            elif time_range == "7d":
+                conditions.append("time_utc >= CURRENT_TIMESTAMP - INTERVAL '7 days'")
+            elif time_range == "30d":
+                conditions.append("time_utc >= CURRENT_TIMESTAMP - INTERVAL '30 days'")
 
             if min_magnitude is not None:
                 conditions.append("mag >= %s")
@@ -298,13 +322,28 @@ def get_events(
                 "limit": limit,
                 "total_records": total_records,
                 "total_pages": (total_records + limit - 1) // limit if total_records > 0 else 1,
-                "items": [dict(it) for it in items]
+                "items": [dict(it) for it in items],
+                "time_range": time_range
             }
     finally:
         conn.close()
 
 @app.get("/api/stats/timeseries", tags=["Analítica"])
-def get_timeseries(days: int = Query(7, ge=1, le=30), user: dict = Depends(require_viewer)):
+def get_timeseries(
+    days: Optional[int] = Query(None, ge=1, le=30),
+    time_range: Optional[str] = Query(None, pattern="^(24h|7d|30d)$"),
+    user: dict = Depends(require_viewer)
+):
+    target_days = 7
+    if time_range == "24h":
+        target_days = 1
+    elif time_range == "7d":
+        target_days = 7
+    elif time_range == "30d":
+        target_days = 30
+    elif days is not None:
+        target_days = days
+
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -313,21 +352,33 @@ def get_timeseries(days: int = Query(7, ge=1, le=30), user: dict = Depends(requi
                 FROM gold.hourly_timeseries
                 WHERE hour_bucket >= CURRENT_TIMESTAMP - INTERVAL '%s days'
                 ORDER BY hour_bucket ASC;
-            """, (days,))
+            """, (target_days,))
             return [dict(r) for r in cur.fetchall()]
     finally:
         conn.close()
 
 @app.get("/api/reports", tags=["Reportes"])
-def get_reports(user: dict = Depends(require_viewer)):
+def get_reports(
+    time_range: Optional[str] = Query(None, pattern="^(24h|7d|30d)$"),
+    user: dict = Depends(require_viewer)
+):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("""
+            limit_days = 30
+            if time_range == "24h":
+                limit_days = 1
+            elif time_range == "7d":
+                limit_days = 7
+            elif time_range == "30d":
+                limit_days = 30
+
+            cur.execute(f"""
                 SELECT id, report_date, executive_summary, notable_events, 
                        active_zones, computed_metrics, model_name, tokens_used, 
                        latency_ms, cost_usd, created_at
                 FROM gold.ai_reports
+                WHERE report_date >= CURRENT_DATE - INTERVAL '{limit_days} days'
                 ORDER BY report_date DESC
                 LIMIT 30;
             """)
@@ -483,16 +534,29 @@ async def stream_live_events(user: dict = Depends(get_sse_user)):
 # Estado de Pipeline y Auditoría de Calidad
 # ------------------------------------------------------------------------------
 @app.get("/api/pipeline/status", tags=["Pipeline"])
-def get_pipeline_status(user: dict = Depends(require_viewer)):
+def get_pipeline_status(
+    time_range: Optional[str] = Query(None, pattern="^(24h|7d|30d)$"),
+    user: dict = Depends(require_viewer)
+):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            # Calidad de datos
-            cur.execute("""
+            # Calidad de datos según ventana
+            interval_str = "30 days"
+            limit_n = 30
+            if time_range == "24h":
+                interval_str = "24 hours"
+                limit_n = 10
+            elif time_range == "7d":
+                interval_str = "7 days"
+                limit_n = 20
+
+            cur.execute(f"""
                 SELECT batch_id, evaluated_records, passed_records, failed_records, 
                        quality_score, executed_at 
                 FROM silver.quality_metrics 
-                ORDER BY executed_at DESC LIMIT 10;
+                WHERE executed_at >= CURRENT_TIMESTAMP - INTERVAL '{interval_str}'
+                ORDER BY executed_at DESC LIMIT {limit_n};
             """)
             metrics = cur.fetchall()
 
@@ -696,53 +760,31 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
             env["HOME"] = "/home/Coder"
             env["USER"] = "Coder"
 
-            # Intentar primero con attach al servidor OpenCode (puerto 4096)
+            # Invocación directa a través de OpenCode server en puerto 4096
             cmd = [
                 OPENCODE_CLI_PATH, "run",
                 "--attach", "http://172.24.0.1:4096",
-                "--format", "json",
-                "-m", "opencode/beam-free",
+                "--pure",
                 full_ai_prompt
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=25, env=env)
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=20, env=env)
 
             # Si attach falló, intentar ejecución directa
-            if res.returncode != 0:
+            if res.returncode != 0 or not res.stdout.strip():
                 logger.warning(f"Attach falló (rc={res.returncode}), intentando directo...")
                 cmd_direct = [
                     OPENCODE_CLI_PATH, "run",
                     "--pure",
-                    "--format", "json",
-                    "-m", "opencode/beam-free",
                     full_ai_prompt
                 ]
                 res = subprocess.run(cmd_direct, capture_output=True, text=True, timeout=15, env=env)
 
-            # Extraer las partes de texto del output JSON
-            text_parts = []
-            for line in res.stdout.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    ev = json.loads(line)
-                    if ev.get("type") == "text":
-                        t = ev.get("part", {}).get("text", "")
-                        if t:
-                            text_parts.append(t)
-                except Exception:
-                    pass
-
-            clean_out = "".join(text_parts).strip()
-
-            # Si no se obtuvo JSON válido pero hay stdout, limpiar salida estándar
-            if not clean_out and res.stdout:
+            if res.returncode == 0 and res.stdout.strip():
                 lines = [l for l in res.stdout.splitlines() if not l.startswith(("> build", "$ ", "✱ ", "→ ", "◈ "))]
                 clean_out = "\n".join(lines).strip()
-
-            if clean_out:
-                reply_text = clean_out
-                engine_used = "opencode (beam-free)"
+                if clean_out:
+                    reply_text = clean_out
+                    engine_used = "opencode-agent-cli (deepseek-v4.1)"
             else:
                 logger.warning(f"OpenCode no generó texto: {res.stderr[:200] if res.stderr else 'vacio'}")
         except subprocess.TimeoutExpired:

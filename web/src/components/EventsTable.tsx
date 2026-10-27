@@ -1,6 +1,6 @@
 import React from 'react';
-import { SeismicEvent } from '../types';
-import { Search, ChevronLeft, ChevronRight, MapPin, Waves } from 'lucide-react';
+import { SeismicEvent, TimeRange } from '../types';
+import { Search, ChevronLeft, ChevronRight, MapPin, Waves, Calendar } from 'lucide-react';
 
 interface EventsTableProps {
   events: SeismicEvent[];
@@ -14,6 +14,8 @@ interface EventsTableProps {
   onSearchTermChange: (term: string) => void;
   tsunamiFilter: boolean | undefined;
   onTsunamiFilterChange: (val: boolean | undefined) => void;
+  timeRange?: TimeRange;
+  onTimeRangeChange?: (range: TimeRange) => void;
   selectedEvent: SeismicEvent | null;
   onSelectEvent: (event: SeismicEvent) => void;
 }
@@ -30,6 +32,8 @@ export const EventsTable: React.FC<EventsTableProps> = ({
   onSearchTermChange,
   tsunamiFilter,
   onTsunamiFilterChange,
+  timeRange = '24h',
+  onTimeRangeChange,
   selectedEvent,
   onSelectEvent,
 }) => {
@@ -48,10 +52,50 @@ export const EventsTable: React.FC<EventsTableProps> = ({
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-5 border-b border-zinc-900 pb-4">
         <div>
           <h3 className="text-sm font-mono font-bold text-white tracking-wide uppercase">Registro de Eventos Sísmicos</h3>
-          <p className="text-[11px] text-zinc-500 font-mono">Consolidado 30 Días (Silver / Gold)</p>
+          <p className="text-[11px] text-zinc-500 font-mono">
+            Ventana {timeRange === '24h' ? 'Últimas 24 Horas' : timeRange === '7d' ? 'Últimos 7 Días' : 'Últimos 30 Días'} ({totalRecords} eventos)
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+          {/* Selector de Rango Temporal para la Tabla */}
+          {onTimeRangeChange && (
+            <div className="flex bg-black border border-zinc-850 rounded p-0.5 text-[11px]">
+              <button
+                type="button"
+                onClick={() => onTimeRangeChange('24h')}
+                className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                  timeRange === '24h'
+                    ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                24H
+              </button>
+              <button
+                type="button"
+                onClick={() => onTimeRangeChange('7d')}
+                className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                  timeRange === '7d'
+                    ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                7D
+              </button>
+              <button
+                type="button"
+                onClick={() => onTimeRangeChange('30d')}
+                className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                  timeRange === '30d'
+                    ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                30D
+              </button>
+            </div>
+          )}
           {/* Búsqueda por ubicación */}
           <div className="relative flex-1 sm:w-60">
             <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-500" />
