@@ -208,6 +208,8 @@ services:
         condition: service_healthy
     ports:
       - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ./web/dist:/usr/share/nginx/html:ro
 
 volumes:
   pg_data:

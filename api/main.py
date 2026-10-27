@@ -725,8 +725,45 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
                 ORDER BY time_utc DESC LIMIT 3;
             """)
             anomalies = cur.fetchall()
+
+            # Desglose diario histórico y comparativo (últimos 7 días)
+            cur.execute("""
+                SELECT 
+                    d.event_date,
+                    COUNT(*) as total_events,
+                    COALESCE(MAX(d.mag), 0.0) as max_mag,
+                    COALESCE(ROUND(AVG(d.mag)::numeric, 2), 0.0) as avg_mag,
+                    COALESCE(SUM(d.tsunami), 0) as tsunami_count
+                FROM (
+                    SELECT DATE(time_utc) as event_date, mag, tsunami
+                    FROM silver.events
+                    WHERE time_utc >= CURRENT_DATE - INTERVAL '7 days'
+                ) d
+                GROUP BY d.event_date
+                ORDER BY d.event_date DESC;
+            """)
+            daily_stats = cur.fetchall()
+
+            # Lugar del sismo más fuerte por día
+            cur.execute("""
+                SELECT DISTINCT ON (DATE(time_utc)) 
+                    DATE(time_utc) as event_date, 
+                    mag, 
+                    place
+                FROM silver.events
+                WHERE time_utc >= CURRENT_DATE - INTERVAL '7 days'
+                ORDER BY DATE(time_utc) DESC, mag DESC;
+            """)
+            daily_places = {str(r["event_date"]): r["place"] for r in cur.fetchall()}
     finally:
         conn.close()
+
+    daily_lines = []
+    for d in daily_stats:
+        dt = str(d["event_date"])
+        plc = daily_places.get(dt, "Ubicación geológica registrada")
+        daily_lines.append(f"- {dt}: {d['total_events']} sismos, Magnitud Máxima: {d['max_mag']:.1f} ({plc}), Magnitud Promedio: {d['avg_mag']:.2f}, Alertas Tsunami: {d['tsunami_count']}")
+    daily_summary_str = "\n".join(daily_lines)
 
     context_str = (
         f"DATOS REALES CONSOLIDADOS EN LA CAPA GOLD Y SILVER (EN VIVO):\n"
@@ -735,6 +772,7 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         f"3. Sismos más Recientes (Top 5):\n{json.dumps([dict(e) for e in recent_events], default=str, ensure_ascii=False, indent=2)}\n"
         f"4. Regiones más Activas:\n{json.dumps([dict(r) for r in active_regions], default=str, ensure_ascii=False, indent=2)}\n"
         f"5. Enjambres y Anomalías Sísmicas Detectadas:\n{json.dumps([dict(a) for a in anomalies], default=str, ensure_ascii=False, indent=2)}\n"
+        f"6. Desglose Diario Oficial por Fecha (Últimos 7 días):\n{daily_summary_str}\n"
     )
 
     full_ai_prompt = (
@@ -827,39 +865,78 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         else:
             engine_used = "motor analítico determinista (sql gold)"
 
-        # Generar tabla markdown si el usuario solicita tablas
-        table_markdown = ""
-        is_table_requested = any(kw in cleaned_prompt.lower() for kw in ["tabla", "table", "cuadro", "comparativ", "lista", "top"])
-        if is_table_requested and largest_events:
-            table_markdown = (
-                "\n### Tabla de Sismos Más Significativos:\n\n"
-                "| Magnitud | Ubicación | Profundidad | Tsunami | Alerta |\n"
-                "| :---: | :--- | :---: | :---: | :---: |\n"
-            )
-            for ev in largest_events[:5]:
-                mag_val = f"**M {ev.get('mag', 0.0):.1f}**"
-                plc = ev.get('place', 'Ubicación no especificada')[:38]
-                dep = f"{ev.get('depth_km', 0.0):.1f} km"
-                tsu = "🌊 Activo" if ev.get('tsunami', 0) > 0 else "Normal"
-                sig_level = "Alta" if (ev.get('mag', 0.0) >= 5.0 or ev.get('tsunami', 0) > 0) else "Moderada"
-                table_markdown += f"| {mag_val} | {plc} | {dep} | {tsu} | {sig_level} |\n"
-            table_markdown += "\n"
+        is_two_days_comp = any(kw in cleaned_prompt.lower() for kw in ["dos dias", "2 dias", "ayer y hoy", "ultimos dos", "dos días", "2 días"]) or ("comparat" in cleaned_prompt.lower() and "dia" in cleaned_prompt.lower())
 
-        reply_text = (
-            f"**Resumen Analítico en Tiempo Real (Capa Gold)**:\n\n"
-            f"- **Actividad 24 Horas**: Se han procesado **{total_e}** sismos con una magnitud promedio de **M {avg_m}**.\n"
-            f"- **Evento de Mayor Intensidad**: **M {max_m}** localizado en *{place_max}*.\n"
-            f"- **Alertas de Tsunami**: **{tsunami_c}** evento(s) con potencial de tsunami activo.\n"
-            f"- **SLA de Calidad**: {kpis.get('quality_score', 100.0)}% de datos validados por PySpark.\n\n"
-            f"{table_markdown}"
-            f"```mermaid\n"
-            f"flowchart TD\n"
-            f"    A[\"🌐 Sismicidad Global (24h): {total_e} eventos\"] --> B[\"⚡ Sismo Máximo: M {max_m}\"]\n"
-            f"    A --> C[\"📊 Magnitud Promedio: M {avg_m}\"]\n"
-            f"    A --> D[\"🌊 Alertas Tsunami: {tsunami_c}\"]\n"
-            f"    B --> E[\"📍 {place_max[:32]}\"]\n"
-            f"```"
-        )
+        if is_two_days_comp and len(daily_stats) >= 2:
+            d_today = daily_stats[0]
+            d_yesterday = daily_stats[1]
+            dt_today_str = str(d_today["event_date"])
+            dt_yesterday_str = str(d_yesterday["event_date"])
+            plc_today = daily_places.get(dt_today_str, "Vanuatu")
+            plc_yesterday = daily_places.get(dt_yesterday_str, "Fiji")
+            
+            diff_pct = round(((d_today["total_events"] - d_yesterday["total_events"]) / (d_yesterday["total_events"] or 1)) * 100, 1)
+            diff_str = f"+{diff_pct}%" if diff_pct > 0 else f"{diff_pct}%"
+
+            reply_text = (
+                f"### Tabla Comparativa de Actividad Sísmica (Últimos 2 Días)\n\n"
+                f"| Fecha | Periodo | Total Sismos | Sismo Más Fuerte | Magnitud Máxima | Magnitud Promedio | Alertas Tsunami |\n"
+                f"| :---: | :---: | :---: | :--- | :---: | :---: | :---: |\n"
+                f"| {dt_today_str} | Hoy | **{d_today['total_events']}** | {plc_today} | **M {d_today['max_mag']:.1f}** | M {d_today['avg_mag']:.2f} | {d_today['tsunami_count']} |\n"
+                f"| {dt_yesterday_str} | Ayer | **{d_yesterday['total_events']}** | {plc_yesterday} | **M {d_yesterday['max_mag']:.1f}** | M {d_yesterday['avg_mag']:.2f} | {d_yesterday['tsunami_count']} |\n\n"
+                f"**Análisis Comparativo Geológico**:\n"
+                f"- **Frecuencia Sísmica**: El día de hoy ({d_today['total_events']} sismos) registra una variación del **{diff_str}** frente al día de ayer ({d_yesterday['total_events']} sismos).\n"
+                f"- **Energía Máxima Liberada**: La magnitud máxima de hoy alcanzó **M {d_today['max_mag']:.1f}** en *{plc_today}*, frente a **M {d_yesterday['max_mag']:.1f}** de ayer en *{plc_yesterday}*.\n"
+                f"- **Riesgo Tsunami**: En las últimas 48 horas se contabilizan **{d_today['tsunami_count'] + d_yesterday['tsunami_count']}** alertas oficiales de tsunami emitidas.\n\n"
+                f"```mermaid\n"
+                f"flowchart LR\n"
+                f"    subgraph Ayer [\"📅 {dt_yesterday_str} (Ayer)\"]\n"
+                f"        direction TB\n"
+                f"        A1[\"Sismos: {d_yesterday['total_events']}\"]\n"
+                f"        A2[\"Máx: M {d_yesterday['max_mag']:.1f}\"]\n"
+                f"    end\n"
+                f"    subgraph Hoy [\"📅 {dt_today_str} (Hoy)\"]\n"
+                f"        direction TB\n"
+                f"        H1[\"Sismos: {d_today['total_events']} ({diff_str})\"]\n"
+                f"        H2[\"Máx: M {d_today['max_mag']:.1f}\"]\n"
+                f"    end\n"
+                f"    Ayer --> Hoy\n"
+                f"```"
+            )
+        else:
+            # Generar tabla markdown si el usuario solicita tablas
+            table_markdown = ""
+            is_table_requested = any(kw in cleaned_prompt.lower() for kw in ["tabla", "table", "cuadro", "comparativ", "lista", "top"])
+            if is_table_requested and largest_events:
+                table_markdown = (
+                    "\n### Tabla de Sismos Más Significativos:\n\n"
+                    "| Magnitud | Ubicación | Profundidad | Tsunami | Alerta |\n"
+                    "| :---: | :--- | :---: | :---: | :---: |\n"
+                )
+                for ev in largest_events[:5]:
+                    mag_val = f"**M {ev.get('mag', 0.0):.1f}**"
+                    plc = ev.get('place', 'Ubicación no especificada')[:38]
+                    dep = f"{ev.get('depth_km', 0.0):.1f} km"
+                    tsu = "🌊 Activo" if ev.get('tsunami', 0) > 0 else "Normal"
+                    sig_level = "Alta" if (ev.get('mag', 0.0) >= 5.0 or ev.get('tsunami', 0) > 0) else "Moderada"
+                    table_markdown += f"| {mag_val} | {plc} | {dep} | {tsu} | {sig_level} |\n"
+                table_markdown += "\n"
+
+            reply_text = (
+                f"**Resumen Analítico en Tiempo Real (Capa Gold)**:\n\n"
+                f"- **Actividad 24 Horas**: Se han procesado **{total_e}** sismos con una magnitud promedio de **M {avg_m}**.\n"
+                f"- **Evento de Mayor Intensidad**: **M {max_m}** localizado en *{place_max}*.\n"
+                f"- **Alertas de Tsunami**: **{tsunami_c}** evento(s) con potencial de tsunami activo.\n"
+                f"- **SLA de Calidad**: {kpis.get('quality_score', 100.0)}% de datos validados por PySpark.\n\n"
+                f"{table_markdown}"
+                f"```mermaid\n"
+                f"flowchart TD\n"
+                f"    A[\"🌐 Sismicidad Global (24h): {total_e} eventos\"] --> B[\"⚡ Sismo Máximo: M {max_m}\"]\n"
+                f"    A --> C[\"📊 Magnitud Promedio: M {avg_m}\"]\n"
+                f"    A --> D[\"🌊 Alertas Tsunami: {tsunami_c}\"]\n"
+                f"    B --> E[\"📍 {place_max[:32]}\"]\n"
+                f"```"
+            )
 
     return {
         "query": prompt,

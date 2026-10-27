@@ -129,6 +129,11 @@ const CodeBlock: React.FC<{ code: string; language?: string }> = ({ code, langua
 };
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '', idPrefix = 'md' }) => {
+  // Asegurar que las tablas Markdown tengan saltos de línea previos y posteriores para que remarkGfm siempre las reconozca
+  const normalizedContent = (content || '')
+    .replace(/([^\n])\n(\|[^\n]+\|)/g, '$1\n\n$2')
+    .replace(/(\|[^\n]+\|)\n([^\n|])/g, '$1\n\n$2');
+
   return (
     <div className={`markdown-body text-xs leading-relaxed text-zinc-200 ${className}`}>
       <ReactMarkdown
@@ -231,7 +236,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
           ),
         }}
       >
-        {content}
+        {normalizedContent}
       </ReactMarkdown>
     </div>
   );
