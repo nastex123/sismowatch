@@ -127,7 +127,7 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
       {/* Gráfico 1: Serie Temporal de Frecuencia Sísmica */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
@@ -188,7 +188,7 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
       </div>
 
       {/* Gráfico 2: Histograma de Magnitudes */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-3.5 h-3.5 text-zinc-400" />
@@ -214,7 +214,7 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
       </div>
 
       {/* Gráfico 3: Dispersión Profundidad vs Magnitud */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">
             <Activity className="w-3.5 h-3.5 text-rose-400" />
@@ -237,7 +237,7 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
       </div>
 
       {/* Gráfico 4: Curva de Energía Sísmica Acumulada */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">
             <Zap className="w-3.5 h-3.5 text-rose-500" />
@@ -259,7 +259,7 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
       </div>
 
       {/* Gráfico 5: Donut de Alertas Tsunami vs Estándar */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">
             <PieIcon className="w-3.5 h-3.5 text-zinc-400" />
@@ -293,7 +293,7 @@ export const SeismicCharts: React.FC<SeismicChartsProps> = ({
       </div>
 
       {/* Gráfico 6: Patrón Circadiano de Monitoreo (00h a 23h UTC) */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
         <div className="flex items-center justify-between mb-3 border-b border-zinc-900 pb-2">
           <div className="flex items-center gap-2">
             <Clock className="w-3.5 h-3.5 text-rose-400" />

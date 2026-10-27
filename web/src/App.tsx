@@ -66,12 +66,18 @@ export const App: React.FC = () => {
     setError(null);
     try {
       const [kpisData, eventsData, tsData, repData, pipeData] = await Promise.all([
-        apiService.getKPIs(timeRange).catch(() => null),
-        apiService.getEvents({ page: 1, limit: 100, min_magnitude: minMagnitude, region: searchTerm, tsunami_only: tsunamiFilter, time_range: timeRange }).catch(() => ({ items: [], total_records: 0, total_pages: 1 })),
+        apiService.getKPIs(timeRange).catch((err) => { console.warn('KPI fetch error:', err); return null; }),
+        apiService.getEvents({ page: 1, limit: 100, min_magnitude: minMagnitude, region: searchTerm, tsunami_only: tsunamiFilter, time_range: timeRange }).catch((err) => { console.warn('Events fetch error:', err); return { items: [], total_records: 0, total_pages: 1 }; }),
         apiService.getTimeseries(timeRange).catch(() => []),
         apiService.getReports(timeRange).catch(() => []),
         apiService.getPipelineStatus(timeRange).catch(() => null)
       ]);
+
+      if (!kpisData && eventsData.items.length === 0) {
+        setError('Error de comunicación con el servicio backend (502 o conexión rechazada). Comprobando enlace...');
+      } else {
+        setError(null);
+      }
 
       if (kpisData) setKpis(kpisData);
       if (eventsData) {
@@ -171,7 +177,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col font-sans text-zinc-200">
+    <div className="min-h-screen bg-[#09090b] flex flex-col font-sans text-zinc-200">
       {/* Barra de Navegación Superior */}
       <Navbar
         session={session}

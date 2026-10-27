@@ -214,6 +214,7 @@ services:
       - "${WEB_PORT:-3000}:3000"
     volumes:
       - ./web/dist:/usr/share/nginx/html:ro
+      - ./web/nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
   pg_data:

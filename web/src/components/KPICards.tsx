@@ -22,8 +22,12 @@ export const KPICards: React.FC<KPICardsProps> = ({
   if (loading || !kpis) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-24 bg-zinc-950 border border-zinc-900 animate-pulse p-4 rounded" />
+        {['Total Sismos', 'Mag. Máxima', 'Mag. Promedio', 'Alertas Tsunami', 'Calidad PySpark'].map((title, i) => (
+          <div key={i} className="h-24 bg-zinc-900/60 border border-zinc-800 rounded p-4 flex flex-col justify-between animate-pulse">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">{title}</span>
+            <div className="h-6 w-16 bg-zinc-800 rounded"></div>
+            <span className="text-[10px] text-zinc-600 font-mono">Sincronizando...</span>
+          </div>
         ))}
       </div>
     );
@@ -89,7 +93,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Total Sismos */}
-        <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+        <div className="bg-zinc-900/70 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
           <div className="flex items-center justify-between text-zinc-400 mb-1.5">
             <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
               Total Sismos ({rangeShort})
@@ -106,7 +110,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
         </div>
 
         {/* Magnitud Máxima */}
-        <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+        <div className="bg-zinc-900/70 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
           <div className="flex items-center justify-between text-zinc-400 mb-1.5">
             <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
               Mag. Máxima ({rangeShort})
@@ -125,7 +129,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
         </div>
 
         {/* Magnitud Promedio */}
-        <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+        <div className="bg-zinc-900/70 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action">
           <div className="flex items-center justify-between text-zinc-400 mb-1.5">
             <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
               Mag. Promedio ({rangeShort})
@@ -141,10 +145,10 @@ export const KPICards: React.FC<KPICardsProps> = ({
         {/* Alertas de Tsunami */}
         <div
           onClick={onTsunamiClick}
-          className={`bg-zinc-950 border rounded p-4 shadow-sm transition-all cursor-pointer press-action ${
+          className={`bg-zinc-900/70 border rounded p-4 shadow-sm transition-all cursor-pointer press-action ${
             isTsunamiFilterActive
-              ? 'border-rose-500/80 bg-zinc-900/50'
-              : 'border-zinc-900 hover:border-zinc-800'
+              ? 'border-rose-500/80 bg-zinc-900/90'
+              : 'border-zinc-800 hover:border-zinc-700'
           }`}
           title="Clic para filtrar y ver alertas de tsunami"
         >
@@ -168,7 +172,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
         </div>
 
         {/* SLA de Calidad de Datos */}
-        <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action col-span-2 md:col-span-1">
+        <div className="bg-zinc-900/70 border border-zinc-800 rounded p-4 shadow-sm hover:border-zinc-700 transition-all press-action col-span-2 md:col-span-1">
           <div className="flex items-center justify-between text-zinc-400 mb-1.5">
             <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Calidad PySpark</span>
             <CheckCircle2 className="w-3.5 h-3.5 text-rose-400" />

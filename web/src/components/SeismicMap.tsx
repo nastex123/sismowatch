@@ -53,14 +53,14 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
   return (
     <div className="relative isolate z-0 w-full h-[450px] lg:h-[500px] rounded overflow-hidden border border-zinc-900 shadow-md bg-black">
       {/* Header del Mapa - Estilo Terminal Minimalista */}
-      <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-3">
-        <div className="bg-black/90 backdrop-blur-md px-3 py-1.5 rounded border border-zinc-850 text-xs font-mono text-zinc-300 flex items-center gap-2">
+      <div className="absolute top-3 left-12 z-[1000] flex flex-wrap items-center gap-2">
+        <div className="bg-zinc-900/90 backdrop-blur-md px-3 py-1.5 rounded border border-zinc-800 text-xs font-mono text-zinc-300 flex items-center gap-2 shadow-lg">
           <Compass className="w-3.5 h-3.5 text-rose-400" />
           <span>Focos: <strong className="text-white font-mono">{filteredEvents.length}</strong></span>
         </div>
 
         {/* Selector de Capa - Botones de Texto con Subrayado Terminal */}
-        <div className="bg-black/90 backdrop-blur-md px-2 py-1 rounded border border-zinc-850 flex items-center gap-3 text-xs font-mono">
+        <div className="bg-zinc-900/90 backdrop-blur-md px-2 py-1 rounded border border-zinc-800 flex items-center gap-3 text-xs font-mono shadow-lg">
           <button
             type="button"
             onClick={() => setViewFilter('all')}
@@ -99,8 +99,8 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
       </div>
 
       {/* Leyenda de Severidad Minimalista */}
-      <div className="absolute bottom-4 right-4 z-20 bg-black/90 backdrop-blur-md p-3 rounded border border-zinc-850 text-[11px] text-zinc-300 shadow flex flex-col gap-1.5 font-mono">
-        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-0.5">Severidad Richter</span>
+      <div className="absolute bottom-4 right-4 z-[1000] bg-zinc-900/90 backdrop-blur-md p-3 rounded border border-zinc-800 text-[11px] text-zinc-300 shadow-xl flex flex-col gap-1.5 font-mono">
+        <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold mb-0.5">Severidad Richter</span>
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-[#71717a]"></span>
           <span>&lt; 3.0 Menor</span>
@@ -117,7 +117,7 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
           <span className="w-2.5 h-2.5 rounded-full bg-[#e11d48]"></span>
           <span>&ge; 7.0 Mayor</span>
         </div>
-        <div className="flex items-center gap-2 pt-1 border-t border-zinc-850 text-rose-300 font-bold">
+        <div className="flex items-center gap-2 pt-1 border-t border-zinc-800 text-rose-300 font-bold">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
           <span>Alerta Tsunami</span>
         </div>
@@ -132,9 +132,10 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
         className="w-full h-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.esri.com/">Esri</a> &copy; OpenStreetMap'
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={16}
+          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+          maxZoom={18}
         />
 
         <MapFocusController targetCoords={targetCoords} />

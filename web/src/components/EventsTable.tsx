@@ -47,7 +47,7 @@ export const EventsTable: React.FC<EventsTableProps> = ({
   };
 
   return (
-    <div className="bg-zinc-950 border border-zinc-900 rounded p-4 lg:p-6 shadow-sm">
+    <div className="bg-zinc-900/60 border border-zinc-800 rounded p-4 lg:p-6 shadow-sm">
       {/* Barra de Filtros Minimalista */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-5 border-b border-zinc-900 pb-4">
         <div>

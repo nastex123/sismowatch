@@ -3,6 +3,13 @@ import { UserSession, KPIStats, SeismicEvent, TimeseriesPoint, AIReport, Pipelin
 const API_BASE = '/api';
 const AUTH_BASE = '/auth';
 
+function checkAuthResponse(res: Response) {
+  if (res.status === 401) {
+    localStorage.removeItem('sismowatch_session');
+    window.location.reload();
+  }
+}
+
 export const apiService = {
   getAuthHeaders(): HeadersInit {
     const sessionStr = localStorage.getItem('sismowatch_session');
@@ -39,7 +46,8 @@ export const apiService = {
 
   async getKPIs(timeRange: TimeRange = '24h'): Promise<KPIStats> {
     const res = await fetch(`${API_BASE}/kpis?time_range=${timeRange}`, { headers: this.getAuthHeaders() });
-    if (!res.ok) throw new Error('Error al obtener KPIs');
+    checkAuthResponse(res);
+    if (!res.ok) throw new Error(`Error al obtener KPIs (${res.status})`);
     return res.json();
   },
 
@@ -60,7 +68,8 @@ export const apiService = {
     if (params.time_range) query.append('time_range', params.time_range);
 
     const res = await fetch(`${API_BASE}/events?${query.toString()}`, { headers: this.getAuthHeaders() });
-    if (!res.ok) throw new Error('Error al cargar eventos');
+    checkAuthResponse(res);
+    if (!res.ok) throw new Error(`Error al cargar eventos (${res.status})`);
     return res.json();
   },
 
@@ -74,21 +83,24 @@ export const apiService = {
       param = `days=${days || 7}`;
     }
     const res = await fetch(`${API_BASE}/stats/timeseries?${param}`, { headers: this.getAuthHeaders() });
-    if (!res.ok) throw new Error('Error al obtener series temporales');
+    checkAuthResponse(res);
+    if (!res.ok) throw new Error(`Error al obtener series temporales (${res.status})`);
     return res.json();
   },
 
   async getReports(timeRange?: TimeRange): Promise<AIReport[]> {
     const param = timeRange ? `?time_range=${timeRange}` : '';
     const res = await fetch(`${API_BASE}/reports${param}`, { headers: this.getAuthHeaders() });
-    if (!res.ok) throw new Error('Error al obtener reportes');
+    checkAuthResponse(res);
+    if (!res.ok) throw new Error(`Error al obtener reportes (${res.status})`);
     return res.json();
   },
 
   async getPipelineStatus(timeRange?: TimeRange): Promise<PipelineStatus> {
     const param = timeRange ? `?time_range=${timeRange}` : '';
     const res = await fetch(`${API_BASE}/pipeline/status${param}`, { headers: this.getAuthHeaders() });
-    if (!res.ok) throw new Error('Error al obtener estado del pipeline');
+    checkAuthResponse(res);
+    if (!res.ok) throw new Error(`Error al obtener estado del pipeline (${res.status})`);
     return res.json();
   },
 
