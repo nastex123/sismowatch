@@ -74,7 +74,7 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       OPENCODE_CLI_PATH: ${OPENCODE_CLI_PATH:-/home/Coder/.opencode/bin/opencode}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-AQ.Ab8RN6KVFTvDdV4PEwcRMHsZQV4EGqVof67mp9FL4Bz8EtYqaA}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       GEMINI_THINKING_LEVEL: ${GEMINI_THINKING_LEVEL:-low}
       # Configuración MinIO S3 (Capa Bronze)
       MINIO_ENDPOINT: minio:9000
@@ -177,7 +177,7 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       OPENCODE_CLI_PATH: ${OPENCODE_CLI_PATH:-/home/Coder/.opencode/bin/opencode}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-AQ.Ab8RN6KVFTvDdV4PEwcRMHsZQV4EGqVof67mp9FL4Bz8EtYqaA}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       GEMINI_THINKING_LEVEL: ${GEMINI_THINKING_LEVEL:-low}
       # Configuración MinIO S3 (Capa Bronze)
       MINIO_ENDPOINT: minio:9000

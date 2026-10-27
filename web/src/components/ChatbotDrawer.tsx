@@ -15,9 +15,9 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
     {
       id: 'welcome',
       sender: 'assistant',
-      text: '¡Hola! Soy el asistente analítico de SismoWatch impulsado por Gemini 3.8 Flash (Thinking: Low). Puedo responder tus consultas sobre la actividad sísmica en tiempo real, generar tablas comparativas estructuradas y diagramas analíticos Mermaid.',
+      text: '¡Hola! Soy el asistente analítico de SismoWatch impulsado por Gemini 3.5 Flash Lite. Puedo responder tus consultas sobre la actividad sísmica en tiempo real, generar tablas comparativas estructuradas y diagramas analíticos Mermaid a ultra-alta velocidad.',
       timestamp: new Date().toLocaleTimeString(),
-      engine: 'Gemini 3.8 Flash (Low)'
+      engine: 'Gemini 3.5 Flash Lite'
     }
   ]);
   const [input, setInput] = useState('');
@@ -113,7 +113,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
                 : 'border-transparent text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            Gemini 3.8 (Default)
+            Gemini 3.5 Lite (Default)
           </button>
           <button
             type="button"

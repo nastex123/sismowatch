@@ -44,7 +44,7 @@ AIRFLOW_ADMIN_PASSWORD = os.getenv("AIRFLOW_ADMIN_PASSWORD", "SismoAdmin2026!")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").lower()
 OPENCODE_CLI_PATH = os.getenv("OPENCODE_CLI_PATH", "/home/Coder/.opencode/bin/opencode")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6KVFTvDdV4PEwcRMHsZQV4EGqVof67mp9FL4Bz8EtYqaA")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "low")
 
 # ------------------------------------------------------------------------------
@@ -851,7 +851,7 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
                 )
 
                 candidate_models = [
-                    GEMINI_MODEL or "gemini-3.8-flash",
+                    GEMINI_MODEL or "gemini-3.5-flash-lite",
                     "gemini-3.5-flash",
                     "gemini-2.5-flash"
                 ]
