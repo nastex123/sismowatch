@@ -86,7 +86,8 @@ services:
       - ./airflow/tests:/opt/airflow/tests
       - ./airflow/logs:/opt/airflow/logs
       - /home/Coder/.opencode:/home/Coder/.opencode:ro
-      - /home/Coder/.local/share/opencode:/home/Coder/.local/share/opencode:ro
+      - /home/Coder/.config/opencode:/home/Coder/.config/opencode:ro
+      - /home/Coder/.local/share/opencode:/home/Coder/.local/share/opencode
     entrypoint: /bin/bash
     command:
       - -c
@@ -170,6 +171,7 @@ services:
       AIRFLOW_WEBSERVER_URL: http://airflow-webserver:8080
       AIRFLOW_ADMIN_USER: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
       AIRFLOW_ADMIN_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-SismoAdmin2026!}
+      HOME: /home/Coder
       AI_PROVIDER: ${AI_PROVIDER:-opencode}
       OPENCODE_CLI_PATH: ${OPENCODE_CLI_PATH:-/home/Coder/.opencode/bin/opencode}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -182,7 +184,8 @@ services:
     volumes:
       - ./api:/app
       - /home/Coder/.opencode:/home/Coder/.opencode:ro
-      - /home/Coder/.local/share/opencode:/home/Coder/.local/share/opencode:ro
+      - /home/Coder/.config/opencode:/home/Coder/.config/opencode:ro
+      - /home/Coder/.local/share/opencode:/home/Coder/.local/share/opencode
     ports:
       - "${API_PORT:-8000}:8000"
     healthcheck:

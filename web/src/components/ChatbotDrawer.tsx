@@ -9,6 +9,7 @@ interface ChatbotDrawerProps {
 }
 
 export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose }) => {
+  const [provider, setProvider] = useState<'opencode' | 'gemini' | 'fallback'>('opencode');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -48,7 +49,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
     setLoading(true);
 
     try {
-      const data = await apiService.sendChatMessage(text);
+      const data = await apiService.sendChatMessage(text, provider);
       const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
@@ -87,7 +88,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
               <h4 className="text-sm font-bold text-white tracking-wide">Asistente SismoWatch</h4>
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300">Gold Layer</span>
             </div>
-            <p className="text-[11px] text-slate-400">OpenCode CLI / Gemini / SQL Read-Only</p>
+            <p className="text-[11px] text-slate-400">Consultas Analíticas en Lenguaje Natural</p>
           </div>
         </div>
         <button
@@ -96,6 +97,46 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
         >
           <X className="w-4 h-4" />
         </button>
+      </div>
+
+      {/* Selector de Modo de IA */}
+      <div className="bg-slate-950/80 px-3 py-2 border-b border-slate-800 flex items-center justify-between text-xs">
+        <span className="text-[11px] font-mono text-slate-400">Modo IA:</span>
+        <div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-1">
+          <button
+            type="button"
+            onClick={() => setProvider('opencode')}
+            className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+              provider === 'opencode'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            OpenCode (Default)
+          </button>
+          <button
+            type="button"
+            onClick={() => setProvider('gemini')}
+            className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+              provider === 'gemini'
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Gemini
+          </button>
+          <button
+            type="button"
+            onClick={() => setProvider('fallback')}
+            className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+              provider === 'fallback'
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Determinista
+          </button>
+        </div>
       </div>
 
       {/* Sugerencias Rápidas */}

@@ -108,6 +108,7 @@ class TokenResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     prompt: str
+    provider: Optional[str] = "opencode"
 
 class BackfillRequest(BaseModel):
     start_date: str
@@ -567,42 +568,63 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         f"Pregunta del usuario: {cleaned_prompt}\n"
     )
 
+    target_provider = (payload.provider or AI_PROVIDER or "opencode").lower().strip()
     reply_text = None
     engine_used = "deterministic-fallback"
 
-    # Intentar OpenCode CLI
-    if AI_PROVIDER == "opencode" and os.path.exists(OPENCODE_CLI_PATH):
+    # 1. Modo OpenCode CLI (Predeterminado)
+    if target_provider == "opencode" and os.path.exists(OPENCODE_CLI_PATH):
         try:
-            start_t = time.time()
+            env = os.environ.copy()
+            env["HOME"] = "/home/Coder"
+            env["USER"] = "Coder"
             res = subprocess.run(
-                [OPENCODE_CLI_PATH, "run", "--pure", full_ai_prompt],
+                [OPENCODE_CLI_PATH, "run", "-m", "opencode/nemotron-3.5-lightning-free", full_ai_prompt],
                 capture_output=True,
                 text=True,
-                timeout=15
+                timeout=7,
+                env=env
             )
-            if res.returncode == 0 and res.stdout.strip():
-                reply_text = res.stdout.strip()
-                engine_used = "opencode-agent-cli"
+            raw_out = (res.stdout or "").strip()
+            lines = [l for l in raw_out.splitlines() if not l.startswith("> build")]
+            clean_out = "\n".join(lines).strip()
+            if res.returncode == 0 and clean_out:
+                reply_text = clean_out
+                engine_used = "opencode (nemotron-3.5-lightning-free)"
+            else:
+                logger.warning(f"OpenCode respuesta vacía o error: {res.stderr}")
+        except subprocess.TimeoutExpired:
+            logger.warning("OpenCode excedió tiempo de espera (cuota gratuita cloud saturada temporalmente).")
         except Exception as e:
             logger.warning(f"Falla de OpenCode CLI en chat: {e}")
 
-    # Intentar Gemini API si no hubo respuesta
-    if not reply_text and (AI_PROVIDER == "gemini" or GEMINI_API_KEY):
+    # 2. Modo Google Gemini API
+    elif target_provider == "gemini":
         try:
-            from google import genai
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            resp = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=full_ai_prompt
-            )
-            reply_text = resp.text.strip()
-            engine_used = "google-gemini-2.5-flash"
+            if not GEMINI_API_KEY:
+                logger.warning("GEMINI_API_KEY no configurada. Recurriendo a fallback determinista.")
+            else:
+                from google import genai
+                client = genai.Client(api_key=GEMINI_API_KEY)
+                resp = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=full_ai_prompt
+                )
+                if resp.text:
+                    reply_text = resp.text.strip()
+                    engine_used = "gemini (gemini-2.5-flash)"
         except Exception as err:
             logger.warning(f"Falla de Gemini en chat: {err}")
 
-    # Fallback determinista
+    # 3. Modo Fallback / Reglas Deterministas
     if not reply_text:
-        engine_used = "deterministic-analyst"
+        if target_provider == "opencode":
+            engine_used = "opencode-fallback (cuota cloud saturada -> motor gold)"
+        elif target_provider == "gemini":
+            engine_used = "gemini-fallback (sin API key -> motor gold)"
+        else:
+            engine_used = "motor determinista (sql gold)"
+
         reply_text = (
             f"Basado en los datos consolidados en la capa Gold de SismoWatch: "
             f"Se han registrado {kpis.get('events_24h', 0)} sismos en las últimas 24 horas con una magnitud promedio de {kpis.get('avg_magnitude', 0.0)} "
@@ -615,6 +637,7 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         "query": prompt,
         "answer": reply_text,
         "engine": engine_used,
+        "provider_requested": target_provider,
         "gold_reference": {
             "events_24h": kpis.get("events_24h", 0),
             "max_magnitude": kpis.get("max_magnitude", 0.0),

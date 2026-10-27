@@ -101,11 +101,11 @@ export const apiService = {
     return res.json();
   },
 
-  async sendChatMessage(prompt: string): Promise<any> {
+  async sendChatMessage(prompt: string, provider: string = 'opencode'): Promise<any> {
     const res = await fetch(`${API_BASE}/chat`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, provider })
     });
     if (!res.ok) throw new Error('Error al consultar al asistente');
     return res.json();
