@@ -30,14 +30,31 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded border border-rose-500/40 bg-zinc-950 flex items-center justify-center press-action">
-            <Activity className="w-4 h-4 text-rose-400" />
+          <div className="relative w-8 h-8 rounded-lg bg-zinc-950 border border-rose-500/50 flex items-center justify-center overflow-hidden shadow-[0_0_12px_rgba(244,63,94,0.2)] group transition-all press-action">
+            <div className="absolute inset-0 bg-gradient-to-br from-rose-500/15 via-transparent to-transparent pointer-events-none" />
+            <svg
+              className="w-5 h-5 text-rose-400 transition-transform group-hover:scale-110"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {/* Ondas concéntricas de hipocentro */}
+              <circle cx="12" cy="12" r="9" stroke="rgba(244,63,94,0.25)" strokeWidth="1" strokeDasharray="2 3" />
+              <circle cx="12" cy="12" r="5.5" stroke="rgba(244,63,94,0.45)" strokeWidth="1.2" />
+              {/* Sismograma activo */}
+              <path d="M3 12h3.5l1.5-4 3 8 2.5-6 1.5 3 2-1h4" stroke="#f43f5e" strokeWidth="2" />
+              {/* Foco sísmico central */}
+              <circle cx="12" cy="12" r="1.5" fill="#f43f5e" />
+            </svg>
           </div>
           <div>
             <div className="flex items-baseline">
               <span className="font-bold text-base text-zinc-100 tracking-tight">SismoWatch</span>
               <span className="text-[10px] uppercase font-mono text-rose-400 border-b border-rose-500/60 pb-0.5 ml-2.5 tracking-wider">
-                Medallón S3
+                S3 Realtime
               </span>
             </div>
             <p className="text-[11px] text-zinc-500 hidden sm:block font-mono">Centro de Monitoreo Sísmico Global</p>

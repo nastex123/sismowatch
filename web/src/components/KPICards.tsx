@@ -105,7 +105,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
           </div>
           <p className="text-[11px] text-zinc-500 mt-1 flex items-center gap-1.5">
             <span className="border-b border-zinc-700 pb-0.5 text-zinc-300 font-mono text-[10px]">USGS Global</span>
-            <span>Capa Gold</span>
+            <span>Datos Oficiales</span>
           </p>
         </div>
 

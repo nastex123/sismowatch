@@ -166,7 +166,7 @@ const ChatChartBlock: React.FC<{ raw: string; id: string }> = ({ raw }) => {
           <BarChart3 className="w-3.5 h-3.5" />
           {chartPayload.title || 'Gráfica Comparativa de Barras'}
         </span>
-        <span className="text-[10px] text-zinc-500 font-normal">Analítica Capa Gold</span>
+        <span className="text-[10px] text-zinc-500 font-normal">Registros Verificados</span>
       </div>
       <div className="h-48 w-full">
         <ResponsiveContainer width="100%" height="100%">

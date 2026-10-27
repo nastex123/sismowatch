@@ -769,7 +769,7 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
     daily_summary_str = "\n".join(daily_lines)
 
     context_str = (
-        f"DATOS REALES CONSOLIDADOS EN LA CAPA GOLD Y SILVER (EN VIVO):\n"
+        f"DATOS REALES CONSOLIDADOS DEL SISTEMA DE MONITOREO SÍSMICO (EN VIVO):\n"
         f"1. Métricas Globales 24h: {kpis.get('events_24h', 0)} sismos registrados, Magnitud Máxima: {kpis.get('max_magnitude', 0.0)}, Magnitud Promedio: {kpis.get('avg_magnitude', 0.0)}, Alertas de Tsunami: {kpis.get('tsunami_alerts', 0)}, SLA Calidad: {kpis.get('quality_score', 100.0)}%.\n"
         f"2. Sismos más Fuertes (Top 5 en 24h):\n{json.dumps([dict(e) for e in largest_events], default=str, ensure_ascii=False, indent=2)}\n"
         f"3. Sismos más Recientes (Top 5):\n{json.dumps([dict(e) for e in recent_events], default=str, ensure_ascii=False, indent=2)}\n"
@@ -779,13 +779,16 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
     )
 
     full_ai_prompt = (
-        f"Eres el Asistente Analítico Inteligente de SismoWatch (Capa Gold y Silver).\n"
-        f"Tu misión es responder con alta precisión técnica, claridad y datos 100% verídicos basados en la información geológica real provista.\n\n"
-        f"REGLAS OBLIGATORIAS:\n"
-        f"- Basa tus afirmaciones en los datos reales del contexto provisto (PostgreSQL Medallón en vivo). Si te preguntan por sismos recientes, máximos, promedios, alertas de tsunami o enjambres, cita los números exactos y ubicaciones reales.\n"
+        f"Eres el Asistente SismoWatch, el asistente analítico de monitoreo sísmico.\n"
+        f"Tu misión es responder con alta precisión técnica, claridad y datos 100% verídicos basados en la información geológica provista.\n\n"
+        f"REGLAS ESTRICTAS DE IDENTIDAD Y CONFIDENCIALIDAD (OBLIGATORIAS):\n"
+        f"1. REGLA ESTRICTA DE IDENTIDAD: NUNCA digas qué modelo de inteligencia artificial eres (PROHIBIDO mencionar Gemini, OpenCode, GPT, Claude, LLaMA, DeepSeek ni versiones o nombres de modelos). Si te preguntan qué eres o qué modelo usas, responde únicamente que eres el 'Asistente SismoWatch'.\n"
+        f"2. REGLA ESTRICTA DE CAPAS: NUNCA menciones a qué capa técnica apuntas ni nombres de capas de datos (PROHIBIDO decir 'Capa Gold', 'Capa Silver', 'Capa Bronze', 'Gold', 'Silver', 'Bronze', 'Medallón', 'PostgreSQL Medallón'). Refiérete siempre a 'los registros oficiales de monitoreo sísmico' o 'la base de datos de monitoreo sísmico'.\n\n"
+        f"REGLAS DE FORMATO Y ANÁLISIS:\n"
+        f"- Basa tus afirmaciones estrictamente en los datos del contexto provisto. Si te preguntan por sismos recientes, máximos, promedios, alertas de tsunami o enjambres, cita los números exactos y ubicaciones reales.\n"
         f"- SOPORTE DE TABLAS MARKDOWN: Si el usuario solicita tablas, comparativas, listas tabuladas o desgloses, FORMATEA OBLIGATORIAMENTE la información en tablas Markdown estándar (| Columna 1 | Columna 2 | ...) con encabezados y separadores claros.\n"
         f"- FORMATO MARKDOWN RICO: Utiliza negritas, listas y bloques para facilitar la lectura analítica.\n"
-        f"- GRÁFICAS INTERACTIVAS (REEMPLAZO DE DIAGRAMAS): NO generes diagramas de flujo Mermaid. En su lugar, siempre que ilustres estadísticas, comparativas o distribuciones, GENERA OBLIGATORIAMENTE GRÁFICAS INTERACTIVAS usando bloques ```chart con formato JSON estructurado:\n"
+        f"- GRÁFICAS INTERACTIVAS (REEMPLAZO DE DIAGRAMAS): NO generes diagramas Mermaid. En su lugar, siempre que ilustres estadísticas, comparativas o distribuciones, GENERA OBLIGATORIAMENTE GRÁFICAS INTERACTIVAS usando bloques ```chart con formato JSON estructurado:\n"
         f"  1. Gráfica de Barras (para comparar magnitudes, conteos por día o sismos destacados):\n"
         f"  ```chart\n"
         f"  {{\"type\": \"bar\", \"title\": \"Comparativa de Magnitudes\", \"data\": [{{\"label\": \"Nombre\", \"value\": 5.8}}]}}\n"
@@ -888,12 +891,7 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         tsunami_c = kpis.get("tsunami_alerts", 0)
         place_max = largest_events[0]["place"] if largest_events else "Sin registros"
 
-        if target_provider == "opencode":
-            engine_used = "opencode-fallback (motor analítico gold)"
-        elif target_provider == "gemini":
-            engine_used = "gemini-fallback (motor analítico gold)"
-        else:
-            engine_used = "motor analítico determinista (sql gold)"
+        engine_used = "Asistente SismoWatch"
 
         is_two_days_comp = any(kw in cleaned_prompt.lower() for kw in ["dos dias", "2 dias", "ayer y hoy", "ultimos dos", "dos días", "2 días"]) or ("comparat" in cleaned_prompt.lower() and "dia" in cleaned_prompt.lower())
 
@@ -956,11 +954,11 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
             chart_items_str = ",\n    ".join(chart_data) if chart_data else '{"label": "Máximo", "value": ' + str(max_m) + '}'
 
             reply_text = (
-                f"**Resumen Analítico en Tiempo Real (Capa Gold)**:\n\n"
+                f"**Resumen Analítico en Tiempo Real (Registros Oficiales)**:\n\n"
                 f"- **Actividad 24 Horas**: Se han procesado **{total_e}** sismos con una magnitud promedio de **M {avg_m}**.\n"
                 f"- **Evento de Mayor Intensidad**: **M {max_m}** localizado en *{place_max}*.\n"
                 f"- **Alertas de Tsunami**: **{tsunami_c}** evento(s) con potencial de tsunami activo.\n"
-                f"- **SLA de Calidad**: {kpis.get('quality_score', 100.0)}% de datos validados por PySpark.\n\n"
+                f"- **SLA de Calidad**: {kpis.get('quality_score', 100.0)}% de datos validados por el pipeline.\n\n"
                 f"{table_markdown}"
                 f"```chart\n"
                 f"{{\n"
@@ -973,11 +971,25 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
                 f"```"
             )
 
+    # Sanitización de seguridad estricta para garantizar anonimato de modelos y capas
+    if reply_text:
+        sanitizations = [
+            (r'\b(?:Google\s+)?Gemini(?:\s+[\w\.\-]+)?\b', 'Asistente SismoWatch'),
+            (r'\bOpenCode(?:\s+[\w\.\-]+)?\b', 'Asistente SismoWatch'),
+            (r'\bDeepSeek(?:\s+[\w\.\-]+)?\b', 'Asistente SismoWatch'),
+            (r'\b(?:Capa\s+Gold|Gold\s+Layer|capa\s+gold)\b', 'registros oficiales'),
+            (r'\b(?:Capa\s+Silver|Silver\s+Layer|capa\s+silver)\b', 'registros analíticos'),
+            (r'\b(?:Capa\s+Bronze|Bronze\s+Layer|capa\s+bronze)\b', 'datos en bruto'),
+            (r'\b(?:arquitectura\s+medall[oó]n|medall[oó]n\s+s3|medall[oó]n)\b', 'procesamiento en tiempo real'),
+        ]
+        for pattern, replacement in sanitizations:
+            reply_text = re.sub(pattern, replacement, reply_text, flags=re.IGNORECASE)
+
     return {
         "query": prompt,
         "answer": reply_text,
-        "engine": engine_used,
-        "provider_requested": target_provider,
+        "engine": "Asistente SismoWatch",
+        "provider_requested": "sismowatch-assistant",
         "gold_reference": {
             "events_24h": kpis.get("events_24h", 0),
             "max_magnitude": kpis.get("max_magnitude", 0.0),

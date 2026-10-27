@@ -85,10 +85,10 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
           </p>
         </div>
 
-        {/* Actualización Capa Gold (PySpark) */}
+        {/* Consolidación de Métricas (PySpark) */}
         <div className="bg-zinc-950 border border-zinc-900 rounded p-5 shadow-sm hover:border-zinc-800 transition-all press-action">
           <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-xs font-mono uppercase tracking-wider">Actualización Capa Gold</span>
+            <span className="text-xs font-mono uppercase tracking-wider">Consolidación de Métricas</span>
             <Clock className="w-4 h-4 text-zinc-400" />
           </div>
           <div className="text-sm font-bold text-white font-mono mt-1">
@@ -111,7 +111,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
             <Database className="w-4 h-4 text-rose-400" />
           </div>
           <div className="text-2xl font-extrabold text-rose-400 font-mono mt-0.5">
-            100% Medallón
+            100.0%
           </div>
           <p className="text-[11px] text-zinc-500 mt-1 font-mono">Reglas bloqueantes activas (PySpark 3.5)</p>
         </div>

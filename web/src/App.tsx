@@ -347,7 +347,7 @@ export const App: React.FC = () => {
         className="fixed bottom-6 right-6 z-40 px-3.5 py-2.5 rounded bg-zinc-950 border border-zinc-850 hover:border-rose-500/80 text-zinc-300 hover:text-white shadow-xl flex items-center gap-2 font-mono text-xs transition-all press-action"
       >
         <MessageSquare className="w-4 h-4 text-rose-400" />
-        <span className="hidden sm:inline border-b border-rose-500/60 pb-0.5">Consultar Capa Gold</span>
+        <span className="hidden sm:inline border-b border-rose-500/60 pb-0.5">Asistente SismoWatch</span>
       </button>
 
       {/* Drawer del Chatbot */}

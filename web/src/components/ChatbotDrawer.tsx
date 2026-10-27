@@ -14,9 +14,9 @@ const CHAT_STORAGE_KEY = 'sismowatch_chat_history';
 const defaultWelcomeMessage: ChatMessage = {
   id: 'welcome',
   sender: 'assistant',
-  text: '¡Hola! Soy el asistente analítico de SismoWatch impulsado por Gemini 3.5 Flash Lite. Puedo responder tus consultas sobre la actividad sísmica en tiempo real, generar tablas comparativas estructuradas y gráficas analíticas interactivas de barras y circulares a ultra-alta velocidad.',
+  text: '¡Hola! Soy el asistente analítico de SismoWatch. Puedo responder tus consultas sobre la actividad sísmica en tiempo real, generar tablas comparativas estructuradas y gráficas analíticas interactivas de barras y circulares.',
   timestamp: new Date().toLocaleTimeString(),
-  engine: 'Gemini 3.5 Flash Lite'
+  engine: 'Asistente SismoWatch'
 };
 
 export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose }) => {
@@ -83,7 +83,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
         sender: 'assistant',
         text: data.answer,
         timestamp: new Date().toLocaleTimeString(),
-        engine: data.engine,
+        engine: 'Asistente SismoWatch',
         gold_reference: data.gold_reference
       };
       setMessages((prev) => [...prev, botMsg]);
@@ -91,9 +91,9 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: `Lo siento, no pude procesar la consulta en la capa Gold: ${err.message}`,
+        text: `Lo siento, no pude procesar la consulta en los registros de monitoreo: ${err.message}`,
         timestamp: new Date().toLocaleTimeString(),
-        engine: 'Error'
+        engine: 'Asistente SismoWatch'
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -114,7 +114,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
           <div>
             <div className="flex items-center gap-2">
               <h4 className="text-xs font-mono font-bold text-white tracking-wide uppercase">Asistente SismoWatch</h4>
-              <span className="text-[10px] font-mono border-b border-rose-500/60 pb-0.5 text-rose-400">OpenCode + Gold</span>
+              <span className="text-[10px] font-mono border-b border-rose-500/60 pb-0.5 text-rose-400">Asistente Oficial</span>
             </div>
             <p className="text-[10px] text-zinc-500 font-mono">Consultas en Tiempo Real con Gráficas</p>
           </div>
@@ -136,9 +136,9 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
         </div>
       </div>
 
-      {/* Selector de Modo de IA */}
+      {/* Selector de Modo de Consulta */}
       <div className="bg-zinc-950/80 px-3 py-2 border-b border-zinc-900 flex items-center justify-between text-xs font-mono">
-        <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Motor IA:</span>
+        <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Modo de Consulta:</span>
         <div className="flex gap-2">
           <button
             type="button"
@@ -149,7 +149,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
                 : 'border-transparent text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            Gemini 3.5 Lite (Default)
+            Rápido (Recomendado)
           </button>
           <button
             type="button"
@@ -160,7 +160,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
                 : 'border-transparent text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            OpenCode
+            Detallado
           </button>
           <button
             type="button"
@@ -171,7 +171,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
                 : 'border-transparent text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            Determinista
+            Estándar
           </button>
         </div>
       </div>
