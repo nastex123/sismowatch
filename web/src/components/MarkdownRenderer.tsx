@@ -1,13 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { BarChart2, Check, Copy } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import { BarChart2 } from 'lucide-react';
 
 interface MarkdownRendererProps {
   content: string;
   className?: string;
   idPrefix?: string;
 }
+
+// Configurar marked con soporte completo GFM
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+  pedantic: false,
+});
 
 // Subcomponente interactivo para diagramas Mermaid
 const MermaidBlock: React.FC<{ chart: string; id: string }> = ({ chart, id }) => {
@@ -89,155 +96,66 @@ const MermaidBlock: React.FC<{ chart: string; id: string }> = ({ chart, id }) =>
   );
 };
 
-// Componente para bloques de código con botón de copiar
-const CodeBlock: React.FC<{ code: string; language?: string }> = ({ code, language }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="my-3 rounded border border-zinc-850 bg-black overflow-hidden font-mono text-xs">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950 border-b border-zinc-850 text-[10px] text-zinc-400">
-        <span className="uppercase text-rose-400 font-bold tracking-wider">{language || 'code'}</span>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1 hover:text-white transition-colors press-action"
-          title="Copiar código"
-        >
-          {copied ? (
-            <>
-              <Check className="w-3 h-3 text-emerald-400" />
-              <span className="text-emerald-400">Copiado</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-3 h-3 text-zinc-400" />
-              <span>Copiar</span>
-            </>
-          )}
-        </button>
-      </div>
-      <pre className="p-3 overflow-x-auto text-zinc-300 text-[11px] leading-relaxed">
-        <code>{code}</code>
-      </pre>
-    </div>
-  );
-};
-
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '', idPrefix = 'md' }) => {
-  // Asegurar que las tablas Markdown tengan saltos de línea previos y posteriores para que remarkGfm siempre las reconozca
-  const normalizedContent = (content || '')
-    .replace(/([^\n])\n(\|[^\n]+\|)/g, '$1\n\n$2')
-    .replace(/(\|[^\n]+\|)\n([^\n|])/g, '$1\n\n$2');
+  const parts = useMemo(() => {
+    if (!content) return [];
+    const mermaidRegex = /```mermaid([\s\S]*?)```/g;
+    const result: { type: 'markdown' | 'mermaid'; data: string; id: string }[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = mermaidRegex.exec(content)) !== null) {
+      const textBefore = content.substring(lastIndex, match.index);
+      if (textBefore.trim()) {
+        result.push({
+          type: 'markdown',
+          data: textBefore,
+          id: `${idPrefix}-md-${lastIndex}`,
+        });
+      }
+
+      result.push({
+        type: 'mermaid',
+        data: match[1].trim(),
+        id: `${idPrefix}-mm-${match.index}`,
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    const remainingText = content.substring(lastIndex);
+    if (remainingText.trim()) {
+      result.push({
+        type: 'markdown',
+        data: remainingText,
+        id: `${idPrefix}-md-${lastIndex}`,
+      });
+    }
+
+    return result;
+  }, [content, idPrefix]);
 
   return (
-    <div className={`markdown-body text-xs leading-relaxed text-zinc-200 ${className}`}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          // Tablas con estilo minimalista negro, zinc y acentos rosa
-          table: ({ node, ...props }) => (
-            <div className="my-3 overflow-x-auto rounded border border-zinc-850 bg-black">
-              <table className="w-full text-left border-collapse text-xs" {...props} />
-            </div>
-          ),
-          thead: ({ node, ...props }) => (
-            <thead className="bg-zinc-950 border-b border-zinc-800 font-mono text-[11px] text-rose-400 uppercase tracking-wider" {...props} />
-          ),
-          tbody: ({ node, ...props }) => (
-            <tbody className="divide-y divide-zinc-900/80 font-sans" {...props} />
-          ),
-          tr: ({ node, ...props }) => (
-            <tr className="hover:bg-zinc-900/40 transition-colors" {...props} />
-          ),
-          th: ({ node, ...props }) => (
-            <th className="px-3 py-2 font-mono font-bold text-rose-400 text-[10px] uppercase border-r border-zinc-900 last:border-r-0" {...props} />
-          ),
-          td: ({ node, ...props }) => (
-            <td className="px-3 py-2 text-zinc-300 text-[11px] border-r border-zinc-900/60 last:border-r-0 font-sans" {...props} />
-          ),
+    <div className={`space-y-2 ${className}`}>
+      {parts.map((part) => {
+        if (part.type === 'mermaid') {
+          return <MermaidBlock key={part.id} chart={part.data} id={part.id} />;
+        }
 
-          // Títulos estructurados
-          h1: ({ node, ...props }) => (
-            <h1 className="text-sm font-mono font-bold text-white border-b border-zinc-850 pb-1.5 mt-4 mb-2 first:mt-0 tracking-wide uppercase" {...props} />
-          ),
-          h2: ({ node, ...props }) => (
-            <h2 className="text-xs font-mono font-bold text-rose-300 mt-3.5 mb-1.5 first:mt-0 uppercase tracking-wider" {...props} />
-          ),
-          h3: ({ node, ...props }) => (
-            <h3 className="text-xs font-mono font-semibold text-zinc-200 mt-2.5 mb-1 first:mt-0" {...props} />
-          ),
+        // Procesamiento con marked para tablas GFM y formato rico
+        const rawHtml = marked.parse(part.data) as string;
+        const cleanHtml = DOMPurify.sanitize(rawHtml, {
+          ADD_ATTR: ['target', 'rel'],
+        });
 
-          // Párrafos
-          p: ({ node, ...props }) => (
-            <p className="my-1.5 leading-relaxed text-zinc-300 last:mb-0" {...props} />
-          ),
-
-          // Listas
-          ul: ({ node, ...props }) => (
-            <ul className="list-disc list-inside space-y-1 my-2 text-zinc-300 pl-1 text-[11px]" {...props} />
-          ),
-          ol: ({ node, ...props }) => (
-            <ol className="list-decimal list-inside space-y-1 my-2 text-zinc-300 pl-1 text-[11px] font-mono" {...props} />
-          ),
-          li: ({ node, ...props }) => (
-            <li className="text-zinc-300 leading-relaxed" {...props} />
-          ),
-
-          // Bloque de citas
-          blockquote: ({ node, ...props }) => (
-            <blockquote className="border-l-2 border-rose-500 bg-zinc-950/80 px-3 py-1.5 my-2.5 text-zinc-400 italic text-[11px] rounded-r" {...props} />
-          ),
-
-          // Bloques de código y Mermaid
-          code: ({ node, className: codeClassName, children, ...props }) => {
-            const match = /language-(\w+)/.exec(codeClassName || '');
-            const lang = match ? match[1] : '';
-            const codeString = String(children).replace(/\n$/, '');
-
-            if (lang === 'mermaid') {
-              const chartId = `${idPrefix}-${Math.random().toString(36).substring(2, 8)}`;
-              return <MermaidBlock chart={codeString} id={chartId} />;
-            }
-
-            // Si es multilínea o tiene clase de lenguaje, renderizar CodeBlock
-            if (codeClassName || codeString.includes('\n')) {
-              return <CodeBlock code={codeString} language={lang} />;
-            }
-
-            // Código inline
-            return (
-              <code className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-rose-300 font-mono text-[10px]" {...props}>
-                {children}
-              </code>
-            );
-          },
-
-          // Énfasis
-          strong: ({ node, ...props }) => (
-            <strong className="text-white font-bold" {...props} />
-          ),
-          em: ({ node, ...props }) => (
-            <em className="text-zinc-300 italic" {...props} />
-          ),
-
-          // Enlaces
-          a: ({ node, ...props }) => (
-            <a className="text-rose-400 hover:text-rose-300 underline font-mono text-xs transition-colors" target="_blank" rel="noopener noreferrer" {...props} />
-          ),
-
-          // Divisores horizontales
-          hr: ({ node, ...props }) => (
-            <hr className="my-3 border-zinc-850" {...props} />
-          ),
-        }}
-      >
-        {normalizedContent}
-      </ReactMarkdown>
+        return (
+          <div
+            key={part.id}
+            className="sismo-markdown leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: cleanHtml }}
+          />
+        );
+      })}
     </div>
   );
 };

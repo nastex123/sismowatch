@@ -49,3 +49,181 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
 }
+
+/* Estilos de alta precisión para tablas y texto Markdown (.sismo-markdown) */
+.sismo-markdown {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #d4d4d8;
+  overflow-x: auto;
+}
+
+.sismo-markdown p {
+  margin: 0.45rem 0;
+  line-height: 1.6;
+  color: #d4d4d8;
+}
+
+.sismo-markdown p:first-child {
+  margin-top: 0;
+}
+
+.sismo-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.sismo-markdown h1 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: monospace;
+  margin: 0.85rem 0 0.4rem;
+  border-bottom: 1px solid #27272a;
+  padding-bottom: 0.3rem;
+  text-transform: uppercase;
+}
+
+.sismo-markdown h2 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fda4af;
+  font-family: monospace;
+  margin: 0.75rem 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sismo-markdown h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #f43f5e;
+  font-family: monospace;
+  margin: 0.65rem 0 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Tablas Markdown GFM estilizadas */
+.sismo-markdown .table-wrapper,
+.sismo-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.72rem;
+  background-color: #000000;
+  border: 1px solid #27272a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sismo-markdown thead {
+  background-color: #09090b;
+  border-bottom: 1.5px solid #27272a;
+}
+
+.sismo-markdown th {
+  padding: 0.55rem 0.75rem;
+  font-family: monospace;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fb7185;
+  font-weight: 700;
+  border-right: 1px solid #18181b;
+  text-align: left;
+}
+
+.sismo-markdown th:last-child {
+  border-right: none;
+}
+
+.sismo-markdown tbody tr {
+  border-bottom: 1px solid #18181b;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.sismo-markdown tbody tr:last-child {
+  border-bottom: none;
+}
+
+.sismo-markdown tbody tr:hover {
+  background-color: rgba(39, 39, 42, 0.45);
+}
+
+.sismo-markdown td {
+  padding: 0.5rem 0.75rem;
+  color: #d4d4d8;
+  border-right: 1px solid #18181b;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.sismo-markdown td:last-child {
+  border-right: none;
+}
+
+.sismo-markdown ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+  color: #d4d4d8;
+}
+
+.sismo-markdown ol {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+  color: #d4d4d8;
+  font-family: monospace;
+}
+
+.sismo-markdown li {
+  margin: 0.2rem 0;
+  line-height: 1.5;
+}
+
+.sismo-markdown code {
+  font-family: monospace;
+  font-size: 0.68rem;
+  background-color: #18181b;
+  border: 1px solid #27272a;
+  color: #fda4af;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+}
+
+.sismo-markdown pre {
+  background-color: #000000;
+  border: 1px solid #27272a;
+  padding: 0.75rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.sismo-markdown pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #e4e4e7;
+}
+
+.sismo-markdown blockquote {
+  border-left: 2px solid #f43f5e;
+  background-color: rgba(9, 9, 11, 0.8);
+  padding: 0.4rem 0.75rem;
+  margin: 0.5rem 0;
+  color: #a1a1aa;
+  font-style: italic;
+  border-radius: 0 4px 4px 0;
+}
+
+.sismo-markdown strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sismo-markdown em {
+  color: #e4e4e7;
+  font-style: italic;
+}
