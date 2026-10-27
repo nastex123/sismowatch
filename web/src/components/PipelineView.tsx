@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PipelineStatus, QuarantineRecord, SeismicEvent } from '../types';
+import { PipelineStatus, QuarantineRecord, SeismicEvent, TimeRange } from '../types';
 import { Database, AlertOctagon, CheckCircle2, RefreshCw, Calendar, Play, Clock, ShieldAlert, Activity, FileSpreadsheet } from 'lucide-react';
 import { apiService } from '../services/api';
 
@@ -8,9 +8,18 @@ interface PipelineViewProps {
   isAdmin: boolean;
   onRefresh: () => void;
   events?: SeismicEvent[];
+  timeRange?: TimeRange;
+  onTimeRangeChange?: (range: TimeRange) => void;
 }
 
-export const PipelineView: React.FC<PipelineViewProps> = ({ status, isAdmin, onRefresh, events = [] }) => {
+export const PipelineView: React.FC<PipelineViewProps> = ({
+  status,
+  isAdmin,
+  onRefresh,
+  events = [],
+  timeRange = '30d',
+  onTimeRangeChange
+}) => {
   const [quarantine, setQuarantine] = useState<QuarantineRecord[]>([]);
   const [loadingQuarantine, setLoadingQuarantine] = useState(false);
   const [backfillStart, setBackfillStart] = useState('2026-09-27');
@@ -54,6 +63,53 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ status, isAdmin, onR
 
   return (
     <div className="space-y-6">
+      {/* Selector de Rango Temporal en Pipeline */}
+      {onTimeRangeChange && (
+        <div className="flex items-center justify-between bg-zinc-950 border border-zinc-900 rounded p-3 font-mono text-xs">
+          <div className="flex items-center gap-2 text-zinc-400">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            <span className="text-zinc-200 font-bold uppercase tracking-wider">
+              Telemetría y Calidad ({timeRange === '24h' ? 'Últimas 24 Horas' : timeRange === '7d' ? 'Últimos 7 Días' : 'Últimos 30 Días'})
+            </span>
+          </div>
+          <div className="flex bg-black border border-zinc-850 rounded p-0.5 text-[11px]">
+            <button
+              type="button"
+              onClick={() => onTimeRangeChange('24h')}
+              className={`px-2.5 py-0.5 rounded transition-all press-action font-bold ${
+                timeRange === '24h'
+                  ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              24H
+            </button>
+            <button
+              type="button"
+              onClick={() => onTimeRangeChange('7d')}
+              className={`px-2.5 py-0.5 rounded transition-all press-action font-bold ${
+                timeRange === '7d'
+                  ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              7D
+            </button>
+            <button
+              type="button"
+              onClick={() => onTimeRangeChange('30d')}
+              className={`px-2.5 py-0.5 rounded transition-all press-action font-bold ${
+                timeRange === '30d'
+                  ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              30D
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tarjeta de Frescura y Estado General - Minimalista */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Frescura Bronze (MinIO S3) */}

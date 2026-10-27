@@ -208,7 +208,9 @@ export const App: React.FC = () => {
           <div className="space-y-6">
             <KPICards 
               kpis={kpis} 
-              loading={loading} 
+              loading={loading}
+              timeRange={timeRange}
+              onTimeRangeChange={setTimeRange}
               onTsunamiClick={() => {
                 setTsunamiFilter((prev) => (prev === true ? undefined : true));
                 setPage(1);
@@ -226,7 +228,12 @@ export const App: React.FC = () => {
             </div>
 
             {/* Gráficos Analíticos (6 Diagramas) */}
-            <SeismicCharts timeseries={timeseries} events={events} />
+            <SeismicCharts
+              timeseries={timeseries}
+              events={events}
+              timeRange={timeRange}
+              onTimeRangeChange={setTimeRange}
+            />
 
             {/* Tabla de Eventos Filtrable */}
             <EventsTable
@@ -250,6 +257,8 @@ export const App: React.FC = () => {
                 setTsunamiFilter(t);
                 setPage(1);
               }}
+              timeRange={timeRange}
+              onTimeRangeChange={setTimeRange}
               selectedEvent={selectedEvent}
               onSelectEvent={(ev) => setSelectedEvent(ev)}
             />
@@ -262,6 +271,8 @@ export const App: React.FC = () => {
             reports={reports}
             isAdmin={session.role === 'admin'}
             onRefresh={loadAllData}
+            timeRange={timeRange}
+            onTimeRangeChange={setTimeRange}
           />
         )}
 
@@ -272,6 +283,8 @@ export const App: React.FC = () => {
             isAdmin={session.role === 'admin'}
             onRefresh={loadAllData}
             events={events}
+            timeRange={timeRange}
+            onTimeRangeChange={setTimeRange}
           />
         )}
       </main>

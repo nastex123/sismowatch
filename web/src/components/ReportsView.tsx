@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AIReport } from '../types';
+import { AIReport, TimeRange } from '../types';
 import { FileText, Download, Sparkles, RefreshCw, CheckCircle, Clock, DollarSign, Cpu } from 'lucide-react';
 import { apiService } from '../services/api';
 
@@ -7,9 +7,17 @@ interface ReportsViewProps {
   reports: AIReport[];
   isAdmin: boolean;
   onRefresh: () => void;
+  timeRange?: TimeRange;
+  onTimeRangeChange?: (range: TimeRange) => void;
 }
 
-export const ReportsView: React.FC<ReportsViewProps> = ({ reports, isAdmin, onRefresh }) => {
+export const ReportsView: React.FC<ReportsViewProps> = ({
+  reports,
+  isAdmin,
+  onRefresh,
+  timeRange = '30d',
+  onTimeRangeChange
+}) => {
   const [selectedReport, setSelectedReport] = useState<AIReport | null>(reports[0] || null);
   const [regenerating, setRegenerating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -37,7 +45,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ reports, isAdmin, onRe
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-rose-400" />
-            <h2 className="text-base font-mono font-bold text-white tracking-wide uppercase">Resúmenes Ejecutivos con IA</h2>
+            <h2 className="text-base font-mono font-bold text-white tracking-wide uppercase">
+              Resúmenes Ejecutivos IA ({timeRange === '24h' ? '24H' : timeRange === '7d' ? '7D' : '30D'})
+            </h2>
           </div>
           <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
             Reportes generados automáticamente sobre la capa Gold con aserciones antialucinación.
@@ -45,6 +55,45 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ reports, isAdmin, onRe
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+          {/* Selector de Rango Temporal para Reportes */}
+          {onTimeRangeChange && (
+            <div className="flex bg-black border border-zinc-850 rounded p-0.5 text-[11px] mr-1">
+              <button
+                type="button"
+                onClick={() => onTimeRangeChange('24h')}
+                className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                  timeRange === '24h'
+                    ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                24H
+              </button>
+              <button
+                type="button"
+                onClick={() => onTimeRangeChange('7d')}
+                className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                  timeRange === '7d'
+                    ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                7D
+              </button>
+              <button
+                type="button"
+                onClick={() => onTimeRangeChange('30d')}
+                className={`px-2 py-0.5 rounded transition-all press-action font-bold ${
+                  timeRange === '30d'
+                    ? 'bg-zinc-900 text-rose-400 border border-rose-500/40'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                30D
+              </button>
+            </div>
+          )}
+
           {/* Descarga CSV */}
           <a
             href="/api/reports/export?format=csv"
