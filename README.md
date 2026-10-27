@@ -26,6 +26,7 @@ docker compose up -d --build
 - **Plataforma Web (Frontend)**: [http://localhost:3000](http://localhost:3000)
 - **Documentación Interactiva de la API (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Interfaz de Apache Airflow**: [http://localhost:8080](http://localhost:8080) (Usuario: `admin` | Contraseña: ver `.env`)
+- **Consola MinIO S3 (Capa Bronze No Relacional)**: [http://localhost:9001](http://localhost:9001) (Usuario: `sismowatch_minio_admin` | Contraseña: `SismoMinioPass2026!`)
 
 ### Credenciales Precargadas de Demostración:
 | Rol | Correo Electrónico | Contraseña por Defecto | Permisos en la Plataforma |
@@ -40,7 +41,7 @@ docker compose up -d --build
 El detalle exhaustivo de la arquitectura, decisiones de diseño, modelo Chen y justificaciones técnicas se encuentra en el documento [`docs/ARQUITECTURA.md`](file:///home/Coder/Documentos/brandonr.r/prueba de desempeño/docs/ARQUITECTURA.md).
 
 ### Resumen de Capas Medallón:
-- **Bronze (Capa Cruda Inalterada)**: Ingesta automatizada cada 5 minutos del feed GeoJSON de USGS hacia la tabla `bronze.raw_events` en PostgreSQL mediante *upsert* idempotente por ID de evento y hash SHA-256 (payload JSONB inalterado, sin overhead de persistencia dual en disco).
+- **Bronze (Capa Cruda No Relacional en MinIO S3)**: Ingesta automatizada cada 5 minutos del feed GeoJSON de USGS hacia buckets compatibles con S3 en MinIO (`s3://sismowatch-bronze/year=YYYY/month=MM/day=DD/`) con catálogo e inserción idempotente por ID y hash SHA-256 en `bronze.raw_events`. Consolida una arquitectura Lakehouse desacoplada y cloud-native libre de bloat relacional.
 - **Silver (Capa Conforme y Limpia)**: Motor PySpark que aplica validaciones bloqueantes de rangos de coordenadas, profundidad y magnitud, detecta duplicados, calcula Z-Score y enjambres espaciales. Los registros válidos se escriben en `silver.events`, los fallidos se aíslan con su motivo en `silver.rejected_events` (auditoría), y las métricas se consolidan en `silver.quality_metrics`.
 - **Gold (Capa de Negocio y Consumo)**: Vistas y agregaciones optimizadas para consulta rápida (`gold.kpis_24h`, `gold.hourly_timeseries`, `gold.active_regions`, `gold.detected_anomalies`, `gold.ai_reports`). Exclusiva capa expuesta a la API y al Chatbot.
 

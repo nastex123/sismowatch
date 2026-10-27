@@ -1,9 +1,11 @@
+import datetime
 import hashlib
 import json
 import logging
 import requests
 from airflow.exceptions import AirflowException
 from include.db_helpers import get_connection
+from include.minio_client import upload_raw_to_minio
 
 logger = logging.getLogger("airflow.task")
 
@@ -31,11 +33,19 @@ def fetch_and_ingest_feed(source_url: str = USGS_REALTIME_URL) -> int:
         raise AirflowException(f"JSON malformado de USGS: {json_err}") from json_err
 
     features = data.get("features", [])
-    logger.info(f"Se recibieron {len(features)} eventos de USGS. Procediendo a inserción idempotente en Bronze...")
+    logger.info(f"Se recibieron {len(features)} eventos de USGS. Subiendo a MinIO S3 y registrando en Bronze...")
 
     if not features:
         return 0
 
+    # 1. Guardar objeto crudo en MinIO S3 (Capa Bronze No Relacional)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    raw_hash = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:8]
+    object_key = f"year={now.year}/month={now.month:02d}/day={now.day:02d}/feed_{int(now.timestamp())}_{raw_hash}.json"
+    s3_uri = upload_raw_to_minio(data, object_key)
+    source_ref = s3_uri or source_url
+
+    # 2. Persistir en bronze.raw_events con referencia al objeto S3
     conn = get_connection(role="ingest")
     inserted_count = 0
     try:
@@ -54,7 +64,7 @@ def fetch_and_ingest_feed(source_url: str = USGS_REALTIME_URL) -> int:
                 if not feature_id:
                     continue
                 p_hash = compute_payload_hash(feature)
-                cur.execute(upsert_sql, (feature_id, json.dumps(feature), p_hash, source_url))
+                cur.execute(upsert_sql, (feature_id, json.dumps(feature), p_hash, source_ref))
                 inserted_count += 1
             conn.commit()
     except Exception as db_err:
@@ -84,13 +94,17 @@ def fetch_historical_backfill(start_date: str, end_date: str, min_magnitude: flo
         raise AirflowException(f"Fallo en backfill USGS: {err}") from err
 
     features = data.get("features", [])
-    logger.info(f"Backfill: {len(features)} eventos históricos obtenidos.")
+    logger.info(f"Backfill: {len(features)} eventos históricos obtenidos. Subiendo a MinIO S3...")
     if not features:
         return 0
 
+    # 1. Guardar objeto crudo de backfill en MinIO S3
+    backfill_key = f"backfill/usgs_backfill_{start_date}_{end_date}_mag{min_magnitude}.json"
+    s3_uri = upload_raw_to_minio(data, backfill_key)
+    source_tag = s3_uri or f"backfill_{start_date}_{end_date}"
+
     conn = get_connection(role="ingest")
     count = 0
-    source_tag = f"backfill_{start_date}_{end_date}"
     try:
         with conn.cursor() as cur:
             upsert_sql = """

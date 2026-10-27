@@ -9,7 +9,10 @@ sys.path.insert(0, os.path.join(BASE_DIR, "dags"))
 
 def test_airflow_dags_integrity():
     """Valida que todos los DAGs se importen sin errores de sintaxis ni ciclos."""
-    from airflow.models import DagBag
+    try:
+        from airflow.models import DagBag
+    except ImportError:
+        pytest.skip("Apache Airflow no instalado en el host local; esta prueba se ejecuta en el contenedor de Airflow.")
 
     dagbag = DagBag(dag_folder=os.path.join(BASE_DIR, "dags"), include_examples=False)
 

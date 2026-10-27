@@ -5,6 +5,9 @@ pyspark==3.5.1
 psycopg2-binary>=2.9.9
 SQLAlchemy>=1.4.52
 
+# MinIO S3 Object Storage
+minio>=7.2.0
+
 # Cliente HTTP, serialización y validación
 requests>=2.33.0
 pydantic>=2.9.0

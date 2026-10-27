@@ -41,8 +41,9 @@ flowchart TD
     end
 
     subgraph STORAGE_MEDALLION["Arquitectura Medallón Híbrida"]
-        subgraph BRONZE_TIER["Capa Bronze (Persistencia Cruda Inalterada)"]
-            BRONZE_TABLE["PostgreSQL: bronze.raw_events\n- id (PK), payload (JSONB inalterado), payload_hash\n- ingestion_source, ingested_at"]
+        subgraph BRONZE_TIER["Capa Bronze (No Relacional: MinIO S3 Object Storage)"]
+            MINIO_S3["MinIO S3 Bucket: s3://sismowatch-bronze/\n- Particionado: year=YYYY/month=MM/day=DD/\n- Payloads GeoJSON crudos inalterados\n- Consola administrativa S3 en puerto :9001"]
+            BRONZE_TABLE["PostgreSQL: bronze.raw_events\n- id (PK), payload (JSONB), payload_hash\n- ingestion_source (s3://...), ingested_at"]
         end
 
         subgraph SILVER_TIER["Capa Silver (Procesamiento PySpark & Validación)"]
