@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserSession, KPIStats, SeismicEvent, TimeseriesPoint, AIReport, PipelineStatus, TimeRange } from './types';
 import { apiService } from './services/api';
 import { Navbar } from './components/Navbar';
@@ -46,20 +46,115 @@ export const App: React.FC = () => {
   // Chatbot
   const [isChatOpen, setIsChatOpen] = useState(false);
 
+  // Guardamos timeRange en ref para que el listener de SSE siempre lea el valor actual sin recrear conexiones
+  const timeRangeRef = useRef<TimeRange>(timeRange);
+  useEffect(() => {
+    timeRangeRef.current = timeRange;
+  }, [timeRange]);
+
   // Cargar datos iniciales al autenticar o cambiar timeRange
   useEffect(() => {
     if (session) {
+      setPage(1);
       loadAllData();
-      initSSE();
     }
   }, [session, timeRange]);
 
-  // Recargar eventos cuando cambian los filtros
+  // Recargar eventos solo cuando cambian los filtros de tabla o paginación
   useEffect(() => {
     if (session) {
       loadEvents();
     }
-  }, [page, minMagnitude, searchTerm, tsunamiFilter, timeRange]);
+  }, [page, minMagnitude, searchTerm, tsunamiFilter]);
+
+  // Canal SSE (Server-Sent Events) en Tiempo Real: se abre UNA SOLA VEZ por sesión
+  useEffect(() => {
+    if (!session?.token) return;
+
+    let eventSource: EventSource | null = null;
+    let reconnectTimer: any = null;
+
+    const connect = () => {
+      try {
+        eventSource = new EventSource(`/api/stream?token=${encodeURIComponent(session.token)}`);
+
+        eventSource.onopen = () => {
+          setIsLiveConnected(true);
+        };
+
+        eventSource.addEventListener('seismic_update', (event: MessageEvent) => {
+          try {
+            const payload = JSON.parse(event.data);
+            setIsLiveConnected(true);
+            setLastLiveUpdate(payload.timestamp);
+
+            // IMPORTANTE: Solo actualizar KPIs si el usuario tiene seleccionada la vista 24H.
+            // Si el usuario seleccionó 7D o 30D, se respetan las métricas históricas de esa ventana.
+            if (timeRangeRef.current === '24h' && payload.kpis && Object.keys(payload.kpis).length > 0) {
+              const raw = payload.kpis;
+              setKpis({
+                events_24h: Number(raw.events_24h ?? 0),
+                events_count: Number(raw.events_count ?? raw.events_24h ?? 0),
+                max_magnitude: Number(raw.max_magnitude ?? 0),
+                avg_magnitude: Number(raw.avg_magnitude ?? 0),
+                tsunami_alerts: Number(raw.tsunami_alerts ?? 0),
+                quality_score: Number(raw.quality_score ?? 100),
+                last_event_time: raw.last_event_time || new Date().toISOString(),
+                last_updated_at: raw.last_updated_at || new Date().toISOString(),
+                time_range: '24h'
+              });
+            }
+
+            if (payload.new_events && payload.new_events.length > 0) {
+              const sanitizedEvents = payload.new_events.map((e: any) => ({
+                ...e,
+                mag: e.mag !== null && e.mag !== undefined ? Number(e.mag) : null,
+                latitude: Number(e.latitude ?? 0),
+                longitude: Number(e.longitude ?? 0),
+                depth_km: Number(e.depth_km ?? 0),
+                tsunami: Number(e.tsunami ?? 0),
+              }));
+              setEvents((prev) => {
+                const existingIds = new Set(prev.map((ev) => ev.id));
+                const fresh = sanitizedEvents.filter((ev: SeismicEvent) => !existingIds.has(ev.id));
+                if (fresh.length === 0) return prev;
+                return [...fresh, ...prev].slice(0, 100);
+              });
+            }
+          } catch (err) {
+            console.warn('Error procesando payload SSE:', err);
+          }
+        });
+
+        eventSource.onerror = () => {
+          setIsLiveConnected(false);
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+          // Reconectar en 5 segundos sin saturar el socket pool
+          if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
+              connect();
+            }, 5000);
+          }
+        };
+      } catch (e) {
+        setIsLiveConnected(false);
+      }
+    };
+
+    connect();
+
+    return () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+    };
+  }, [session?.token]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -104,62 +199,6 @@ export const App: React.FC = () => {
     } catch (e: any) {
       console.warn('Falla al recargar eventos:', e.message);
     }
-  };
-
-  // Canal SSE (Server-Sent Events) en Tiempo Real
-  const initSSE = () => {
-    if (!session) return;
-    const eventSource = new EventSource(`/api/stream?token=${encodeURIComponent(session.token)}`);
-
-    eventSource.onopen = () => {
-      setIsLiveConnected(true);
-    };
-
-    eventSource.addEventListener('seismic_update', (event: MessageEvent) => {
-      try {
-        const payload = JSON.parse(event.data);
-        setIsLiveConnected(true);
-        setLastLiveUpdate(payload.timestamp);
-        if (payload.kpis && Object.keys(payload.kpis).length > 0) {
-          const raw = payload.kpis;
-          setKpis((prev) => ({
-            ...prev,
-            ...raw,
-            events_24h: Number(raw.events_24h ?? prev?.events_24h ?? 0),
-            max_magnitude: Number(raw.max_magnitude ?? prev?.max_magnitude ?? 0),
-            avg_magnitude: Number(raw.avg_magnitude ?? prev?.avg_magnitude ?? 0),
-            tsunami_alerts: Number(raw.tsunami_alerts ?? prev?.tsunami_alerts ?? 0),
-            quality_score: Number(raw.quality_score ?? prev?.quality_score ?? 100),
-          }));
-        }
-        if (payload.new_events && payload.new_events.length > 0) {
-          // Incorporar eventos nuevos al inicio sin recargar página
-          const sanitizedEvents = payload.new_events.map((e: any) => ({
-            ...e,
-            mag: e.mag !== null && e.mag !== undefined ? Number(e.mag) : null,
-            latitude: Number(e.latitude ?? 0),
-            longitude: Number(e.longitude ?? 0),
-            depth_km: Number(e.depth_km ?? 0),
-            tsunami: Number(e.tsunami ?? 0),
-          }));
-          setEvents((prev) => {
-            const existingIds = new Set(prev.map((e) => e.id));
-            const fresh = sanitizedEvents.filter((e: SeismicEvent) => !existingIds.has(e.id));
-            return [...fresh, ...prev];
-          });
-        }
-      } catch (err) {
-        console.error('Error parseando payload SSE:', err);
-      }
-    });
-
-    eventSource.onerror = () => {
-      setIsLiveConnected(false);
-    };
-
-    return () => {
-      eventSource.close();
-    };
   };
 
   const handleLoginSuccess = (newSession: UserSession) => {

@@ -243,7 +243,7 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
                 VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP);
             """, (batch_id, total_evaluated, passed_count, failed_count, quality_score))
 
-            # 4.4 Calcular y consolidar Capa Gold (gold.kpis_24h consolidado a 30 días)
+            # 4.4 Calcular y consolidar Capa Gold (gold.kpis_24h últimas 24 horas)
             cur.execute("""
                 DELETE FROM gold.kpis_24h;
                 INSERT INTO gold.kpis_24h (events_24h, max_magnitude, avg_magnitude, tsunami_alerts, quality_score, last_event_time, last_updated_at)
@@ -256,7 +256,7 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
                     MAX(time_utc),
                     CURRENT_TIMESTAMP
                 FROM silver.events
-                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '30 days';
+                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '24 hours';
             """, (quality_score,))
 
             # 4.5 Consolidar serie temporal horaria (gold.hourly_timeseries últimos 30 días)

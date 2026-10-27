@@ -20,6 +20,24 @@ const MapFocusController: React.FC<{ targetCoords: [number, number] | null }> = 
   return null;
 };
 
+// Subcomponente para garantizar el renderizado correcto de Leaflet y evitar azulejos grises
+const MapResizeHandler: React.FC = () => {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+    const handleResize = () => map.invalidateSize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map]);
+  return null;
+};
+
 export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, onSelectEvent }) => {
   // Filtro de capa: ambos (sismos y tsunamis), solo tsunamis, solo sismos
   const [viewFilter, setViewFilter] = useState<'all' | 'tsunami' | 'earthquake'>('all');
@@ -129,15 +147,17 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
         minZoom={2}
         maxZoom={12}
         scrollWheelZoom={true}
+        style={{ height: '100%', width: '100%', minHeight: '450px' }}
         className="w-full h-full"
       >
         <TileLayer
           attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png"
           subdomains="abcd"
           maxZoom={18}
         />
 
+        <MapResizeHandler />
         <MapFocusController targetCoords={targetCoords} />
 
         {filteredEvents.map((ev) => {

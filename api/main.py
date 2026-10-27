@@ -506,6 +506,7 @@ async def stream_live_events(user: dict = Depends(get_sse_user)):
                     kpis_dict = dict(kpis)
                     if kpis_dict.get("events_24h") is not None:
                         kpis_dict["events_24h"] = int(kpis_dict["events_24h"])
+                        kpis_dict["events_count"] = kpis_dict["events_24h"]
                     if kpis_dict.get("max_magnitude") is not None:
                         kpis_dict["max_magnitude"] = float(kpis_dict["max_magnitude"])
                     if kpis_dict.get("avg_magnitude") is not None:
