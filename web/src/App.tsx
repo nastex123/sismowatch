@@ -114,13 +114,30 @@ export const App: React.FC = () => {
         setIsLiveConnected(true);
         setLastLiveUpdate(payload.timestamp);
         if (payload.kpis && Object.keys(payload.kpis).length > 0) {
-          setKpis((prev) => ({ ...prev, ...payload.kpis }));
+          const raw = payload.kpis;
+          setKpis((prev) => ({
+            ...prev,
+            ...raw,
+            events_24h: Number(raw.events_24h ?? prev?.events_24h ?? 0),
+            max_magnitude: Number(raw.max_magnitude ?? prev?.max_magnitude ?? 0),
+            avg_magnitude: Number(raw.avg_magnitude ?? prev?.avg_magnitude ?? 0),
+            tsunami_alerts: Number(raw.tsunami_alerts ?? prev?.tsunami_alerts ?? 0),
+            quality_score: Number(raw.quality_score ?? prev?.quality_score ?? 100),
+          }));
         }
         if (payload.new_events && payload.new_events.length > 0) {
           // Incorporar eventos nuevos al inicio sin recargar página
+          const sanitizedEvents = payload.new_events.map((e: any) => ({
+            ...e,
+            mag: e.mag !== null && e.mag !== undefined ? Number(e.mag) : null,
+            latitude: Number(e.latitude ?? 0),
+            longitude: Number(e.longitude ?? 0),
+            depth_km: Number(e.depth_km ?? 0),
+            tsunami: Number(e.tsunami ?? 0),
+          }));
           setEvents((prev) => {
             const existingIds = new Set(prev.map((e) => e.id));
-            const fresh = payload.new_events.filter((e: SeismicEvent) => !existingIds.has(e.id));
+            const fresh = sanitizedEvents.filter((e: SeismicEvent) => !existingIds.has(e.id));
             return [...fresh, ...prev];
           });
         }

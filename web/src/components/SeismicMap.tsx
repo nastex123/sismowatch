@@ -175,7 +175,7 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
                   <div className="p-1.5 font-sans text-slate-900 max-w-xs">
                     <div className="flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                       <span className="font-bold text-sm text-slate-900">
-                        Mag: {ev.mag ? ev.mag.toFixed(1) : 'N/A'} {ev.mag_type || ''}
+                        Mag: {ev.mag !== null && ev.mag !== undefined ? Number(ev.mag).toFixed(1) : 'N/A'} {ev.mag_type || ''}
                       </span>
                       {hasTsunami && (
                         <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800 text-[10px] font-bold flex items-center gap-0.5">
@@ -195,7 +195,7 @@ export const SeismicMap: React.FC<SeismicMapProps> = ({ events, selectedEvent, o
                     <div className="text-[11px] text-slate-500 flex flex-col gap-0.5">
                       <span>Profundidad: <strong>{ev.depth_km} km</strong></span>
                       <span>Fecha: {new Date(ev.time_utc).toLocaleString()}</span>
-                      <span>Coords: {ev.latitude.toFixed(2)}, {ev.longitude.toFixed(2)}</span>
+                      <span>Coords: {Number(ev.latitude).toFixed(2)}, {Number(ev.longitude).toFixed(2)}</span>
                       {ev.z_score_mag && (
                         <span className="text-amber-600 font-mono">Z-Score: {ev.z_score_mag}</span>
                       )}

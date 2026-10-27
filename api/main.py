@@ -431,10 +431,43 @@ async def stream_live_events(user: dict = Depends(get_sse_user)):
                 if new_events:
                     last_check = new_events[0]["time_utc"]
 
+                events_list = []
+                for e in new_events:
+                    ed = dict(e)
+                    if ed.get("mag") is not None:
+                        ed["mag"] = float(ed["mag"])
+                    if ed.get("latitude") is not None:
+                        ed["latitude"] = float(ed["latitude"])
+                    if ed.get("longitude") is not None:
+                        ed["longitude"] = float(ed["longitude"])
+                    if ed.get("depth_km") is not None:
+                        ed["depth_km"] = float(ed["depth_km"])
+                    if ed.get("tsunami") is not None:
+                        ed["tsunami"] = int(ed["tsunami"])
+                    if ed.get("time_utc"):
+                        ed["time_utc"] = ed["time_utc"].isoformat() if hasattr(ed["time_utc"], "isoformat") else str(ed["time_utc"])
+                    events_list.append(ed)
+
+                kpis_dict = {}
+                if kpis:
+                    kpis_dict = dict(kpis)
+                    if kpis_dict.get("events_24h") is not None:
+                        kpis_dict["events_24h"] = int(kpis_dict["events_24h"])
+                    if kpis_dict.get("max_magnitude") is not None:
+                        kpis_dict["max_magnitude"] = float(kpis_dict["max_magnitude"])
+                    if kpis_dict.get("avg_magnitude") is not None:
+                        kpis_dict["avg_magnitude"] = float(kpis_dict["avg_magnitude"])
+                    if kpis_dict.get("tsunami_alerts") is not None:
+                        kpis_dict["tsunami_alerts"] = int(kpis_dict["tsunami_alerts"])
+                    if kpis_dict.get("quality_score") is not None:
+                        kpis_dict["quality_score"] = float(kpis_dict["quality_score"])
+                    if kpis_dict.get("last_updated_at"):
+                        kpis_dict["last_updated_at"] = str(kpis_dict["last_updated_at"])
+
                 payload = {
                     "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    "kpis": dict(kpis) if kpis else {},
-                    "new_events": [dict(e) for e in new_events]
+                    "kpis": kpis_dict,
+                    "new_events": events_list
                 }
                 yield {"event": "seismic_update", "data": json.dumps(payload, default=str)}
 

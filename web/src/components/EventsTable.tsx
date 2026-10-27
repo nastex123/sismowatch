@@ -33,12 +33,13 @@ export const EventsTable: React.FC<EventsTableProps> = ({
   selectedEvent,
   onSelectEvent,
 }) => {
-  const getMagBadge = (mag: number | null) => {
-    if (!mag) return <span className="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-400">N/A</span>;
-    if (mag >= 7.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">{mag.toFixed(1)}</span>;
-    if (mag >= 5.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">{mag.toFixed(1)}</span>;
-    if (mag >= 3.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">{mag.toFixed(1)}</span>;
-    return <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">{mag.toFixed(1)}</span>;
+  const getMagBadge = (mag: number | string | null) => {
+    if (mag === null || mag === undefined) return <span className="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-400">N/A</span>;
+    const val = Number(mag);
+    if (val >= 7.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">{val.toFixed(1)}</span>;
+    if (val >= 5.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">{val.toFixed(1)}</span>;
+    if (val >= 3.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">{val.toFixed(1)}</span>;
+    return <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">{val.toFixed(1)}</span>;
   };
 
   return (
