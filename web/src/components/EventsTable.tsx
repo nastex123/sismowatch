@@ -1,6 +1,6 @@
 import React from 'react';
 import { SeismicEvent } from '../types';
-import { Search, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, MapPin, Waves } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, MapPin, Waves } from 'lucide-react';
 
 interface EventsTableProps {
   events: SeismicEvent[];
@@ -33,134 +33,133 @@ export const EventsTable: React.FC<EventsTableProps> = ({
   selectedEvent,
   onSelectEvent,
 }) => {
-  const getMagBadge = (mag: number | string | null) => {
-    if (mag === null || mag === undefined) return <span className="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-400">N/A</span>;
+  const getMagUnderline = (mag: number | string | null) => {
+    if (mag === null || mag === undefined) return <span className="border-b border-zinc-700 text-zinc-500 font-mono text-xs pb-0.5">N/A</span>;
     const val = Number(mag);
-    if (val >= 7.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">{val.toFixed(1)}</span>;
-    if (val >= 5.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">{val.toFixed(1)}</span>;
-    if (val >= 3.0) return <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">{val.toFixed(1)}</span>;
-    return <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">{val.toFixed(1)}</span>;
+    if (val >= 7.0) return <span className="border-b border-rose-500 pb-0.5 text-rose-400 font-bold font-mono text-xs">{val.toFixed(1)}</span>;
+    if (val >= 5.0) return <span className="border-b border-rose-400/80 pb-0.5 text-rose-300 font-bold font-mono text-xs">{val.toFixed(1)}</span>;
+    if (val >= 3.0) return <span className="border-b border-zinc-500 pb-0.5 text-zinc-200 font-mono text-xs">{val.toFixed(1)}</span>;
+    return <span className="border-b border-zinc-700 pb-0.5 text-zinc-400 font-mono text-xs">{val.toFixed(1)}</span>;
   };
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 lg:p-6 shadow">
-      {/* Barra de Filtros */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-5">
+    <div className="bg-zinc-950 border border-zinc-900 rounded p-4 lg:p-6 shadow-sm">
+      {/* Barra de Filtros Minimalista */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-5 border-b border-zinc-900 pb-4">
         <div>
-          <h3 className="text-base font-bold text-white tracking-wide">Registro de Eventos Sísmicos</h3>
-          <p className="text-xs text-slate-400">Datos validados y tipados en la capa Silver / Gold</p>
+          <h3 className="text-sm font-mono font-bold text-white tracking-wide uppercase">Registro de Eventos Sísmicos</h3>
+          <p className="text-[11px] text-zinc-500 font-mono">Consolidado 30 Días (Silver / Gold)</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
           {/* Búsqueda por ubicación */}
-          <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
+          <div className="relative flex-1 sm:w-60">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-500" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => onSearchTermChange(e.target.value)}
-              placeholder="Buscar región (ej. Chile, Alaska)..."
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              placeholder="Filtrar por región..."
+              className="w-full bg-black border border-zinc-850 rounded pl-9 pr-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-rose-500/80 font-mono"
             />
           </div>
 
-          {/* Filtro por Magnitud */}
-          <select
-            value={minMagnitude ?? ''}
-            onChange={(e) => onMinMagnitudeChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-            className="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-          >
-            <option value="">Todas las magnitudes</option>
-            <option value="2.5">&ge; 2.5 (Perceptible)</option>
-            <option value="4.0">&ge; 4.0 (Moderado)</option>
-            <option value="5.0">&ge; 5.0 (Fuerte)</option>
-            <option value="6.0">&ge; 6.0 (Severo)</option>
-          </select>
-
           {/* Filtro Dual Sismos / Tsunamis */}
           <select
-            value={tsunamiFilter === undefined ? '' : tsunamiFilter.toString()}
-            onChange={(e) => onTsunamiFilterChange(e.target.value === '' ? undefined : e.target.value === 'true')}
-            className="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-medium"
+            value={tsunamiFilter === undefined ? 'all' : tsunamiFilter ? 'tsunami' : 'regular'}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === 'all') onTsunamiFilterChange(undefined);
+              else if (val === 'tsunami') onTsunamiFilterChange(true);
+              else onTsunamiFilterChange(false);
+            }}
+            className="bg-black border border-zinc-850 rounded px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-rose-500/80 font-mono"
           >
-            <option value="">Ambos (Sismos + Tsunamis)</option>
-            <option value="true">🌊 Solo Alertas Tsunami</option>
-            <option value="false">Solo Sismos Estándar</option>
+            <option value="all">Filtro: Todos</option>
+            <option value="tsunami">Solo Alertas Tsunami</option>
+            <option value="regular">Solo Sismos Estándar</option>
+          </select>
+
+          {/* Filtro por Magnitud Mínima */}
+          <select
+            value={minMagnitude ?? ''}
+            onChange={(e) => onMinMagnitudeChange(e.target.value ? Number(e.target.value) : undefined)}
+            className="bg-black border border-zinc-850 rounded px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-rose-500/80 font-mono"
+          >
+            <option value="">Mag. Mínima</option>
+            <option value="2.5">&ge; 2.5 Richter</option>
+            <option value="4.0">&ge; 4.0 Moderado</option>
+            <option value="5.5">&ge; 5.5 Fuerte</option>
+            <option value="7.0">&ge; 7.0 Mayor</option>
           </select>
         </div>
       </div>
 
-      {/* Tabla */}
+      {/* Tabla de Resultados - Sin Cajas Rellenas */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs text-slate-300">
-          <thead className="bg-slate-950/80 text-slate-400 uppercase font-mono text-[10px] border-b border-slate-800">
-            <tr>
+        <table className="w-full text-left text-xs font-mono">
+          <thead>
+            <tr className="border-b border-zinc-900 text-zinc-500 text-[11px] uppercase tracking-wider">
               <th className="py-2.5 px-3">Magnitud</th>
-              <th className="py-2.5 px-3">Ubicación Geográfica</th>
-              <th className="py-2.5 px-3">Fecha y Hora (UTC)</th>
+              <th className="py-2.5 px-3">Tipo / Alerta</th>
+              <th className="py-2.5 px-3">Ubicación / Región</th>
               <th className="py-2.5 px-3">Profundidad</th>
-              <th className="py-2.5 px-3">Alertas</th>
+              <th className="py-2.5 px-3">Fecha y Hora (UTC)</th>
               <th className="py-2.5 px-3 text-right">Acción</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 font-sans">
+          <tbody className="divide-y divide-zinc-900/60 text-zinc-300">
             {events.length > 0 ? (
               events.map((ev) => {
                 const isSelected = selectedEvent?.id === ev.id;
+                const hasTsunami = Number(ev.tsunami) > 0;
+
                 return (
                   <tr
                     key={ev.id}
-                    onClick={() => onSelectEvent(ev)}
-                    className={`cursor-pointer transition-colors ${
-                      isSelected ? 'bg-emerald-500/10' : 'hover:bg-slate-800/50'
+                    className={`transition-colors hover:bg-zinc-900/40 ${
+                      isSelected ? 'bg-zinc-900/70 border-l-2 border-rose-500' : ''
                     }`}
                   >
-                    <td className="py-2.5 px-3 whitespace-nowrap font-mono">{getMagBadge(ev.mag)}</td>
-                    <td className="py-2.5 px-3 font-medium text-white max-w-xs truncate">{ev.place}</td>
-                    <td className="py-2.5 px-3 whitespace-nowrap text-slate-400 font-mono text-[11px]">
-                      {new Date(ev.time_utc).toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap font-mono">{ev.depth_km} km</td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
-                      {ev.tsunami > 0 ? (
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded border border-cyan-500/80 shadow-sm">
-                          <Waves className="w-3.5 h-3.5 text-cyan-400 animate-pulse" /> ALERTA TSUNAMI
+                      {getMagUnderline(ev.mag)}
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      {hasTsunami ? (
+                        <span className="border-b border-rose-500 pb-0.5 text-rose-300 font-bold flex items-center gap-1">
+                          <Waves className="w-3 h-3 text-rose-400" />
+                          TSUNAMI
                         </span>
                       ) : (
-                        <span className="text-slate-500 font-mono text-[11px]">Sismo Normal</span>
+                        <span className="text-zinc-500 text-[11px]">Estándar</span>
                       )}
+                    </td>
+                    <td className="py-2.5 px-3 font-sans text-zinc-200 max-w-xs truncate" title={ev.place}>
+                      {ev.place}
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap text-zinc-400">
+                      {Number(ev.depth_km).toFixed(1)} km
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap text-zinc-500 text-[11px]">
+                      {new Date(ev.time_utc).toLocaleString()}
                     </td>
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectEvent(ev);
-                        }}
-                        className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors"
-                        title="Localizar en Mapa"
+                        onClick={() => onSelectEvent(ev)}
+                        className="py-1 px-2 text-[11px] rounded text-zinc-400 hover:text-rose-400 border border-zinc-850 hover:border-rose-500/50 transition-all press-action inline-flex items-center gap-1"
+                        title="Localizar foco en el mapa"
                       >
-                        <MapPin className="w-4 h-4" />
+                        <MapPin className="w-3 h-3" />
+                        <span>Foco</span>
                       </button>
-                      {ev.url && (
-                        <a
-                          href={ev.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-1 ml-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 inline-block"
-                          title="Ficha Oficial USGS"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
                     </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-500 font-mono text-xs">
-                  No se encontraron eventos con los filtros seleccionados.
+                <td colSpan={6} className="py-8 text-center text-zinc-500 font-mono">
+                  No se encontraron eventos coincidentes con los filtros aplicados.
                 </td>
               </tr>
             )}
@@ -169,26 +168,28 @@ export const EventsTable: React.FC<EventsTableProps> = ({
       </div>
 
       {/* Paginación */}
-      <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-800 text-xs text-slate-400 font-mono">
-        <span>Total: {totalRecords} eventos registrados</span>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-zinc-900 text-xs font-mono text-zinc-500">
+        <div>
+          Mostrando página <strong className="text-zinc-200">{currentPage}</strong> de <strong className="text-zinc-200">{totalPages}</strong> ({totalRecords.toLocaleString()} sismos catalogados)
+        </div>
         <div className="flex items-center gap-2">
-          <span>Página {currentPage} de {totalPages || 1}</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 disabled:opacity-30 hover:bg-slate-800 text-slate-300 transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage <= 1}
+            className="p-1.5 rounded border border-zinc-850 hover:border-zinc-700 disabled:opacity-30 disabled:pointer-events-none text-zinc-300 transition-all press-action"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="px-2 py-1 text-zinc-300">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+            className="p-1.5 rounded border border-zinc-850 hover:border-zinc-700 disabled:opacity-30 disabled:pointer-events-none text-zinc-300 transition-all press-action"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

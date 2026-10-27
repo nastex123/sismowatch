@@ -170,7 +170,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col font-sans">
+    <div className="min-h-screen bg-black flex flex-col font-sans text-zinc-200">
       {/* Barra de Navegación Superior */}
       <Navbar
         session={session}
@@ -186,14 +186,14 @@ export const App: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8">
         {/* Banner de Error Resiliente */}
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between text-xs text-rose-300">
+          <div className="mb-6 p-3 rounded bg-zinc-950 border border-zinc-900 border-l-2 border-rose-500 flex items-center justify-between text-xs text-rose-300 font-mono">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
               <span>{error}</span>
             </div>
             <button
               onClick={loadAllData}
-              className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 font-medium text-rose-200 transition-colors"
+              className="px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-rose-300 font-medium transition-all press-action"
             >
               Reintentar
             </button>
@@ -222,7 +222,7 @@ export const App: React.FC = () => {
               />
             </div>
 
-            {/* Gráficos Analíticos */}
+            {/* Gráficos Analíticos (6 Diagramas) */}
             <SeismicCharts timeseries={timeseries} events={events} />
 
             {/* Tabla de Eventos Filtrable */}
@@ -268,17 +268,18 @@ export const App: React.FC = () => {
             status={pipelineStatus}
             isAdmin={session.role === 'admin'}
             onRefresh={loadAllData}
+            events={events}
           />
         )}
       </main>
 
-      {/* Botón Flotante para Abrir Chatbot */}
+      {/* Botón Flotante para Abrir Chatbot - Minimalista */}
       <button
         onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed bottom-6 right-6 z-40 p-3.5 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-xl shadow-emerald-500/30 flex items-center gap-2 font-medium text-xs transition-transform hover:scale-105 active:scale-95"
+        className="fixed bottom-6 right-6 z-40 px-3.5 py-2.5 rounded bg-zinc-950 border border-zinc-850 hover:border-rose-500/80 text-zinc-300 hover:text-white shadow-xl flex items-center gap-2 font-mono text-xs transition-all press-action"
       >
-        <MessageSquare className="w-5 h-5" />
-        <span className="hidden sm:inline">Consultar Capa Gold</span>
+        <MessageSquare className="w-4 h-4 text-rose-400" />
+        <span className="hidden sm:inline border-b border-rose-500/60 pb-0.5">Consultar Capa Gold</span>
       </button>
 
       {/* Drawer del Chatbot */}

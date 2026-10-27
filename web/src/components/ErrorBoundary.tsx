@@ -32,21 +32,21 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center shadow-2xl">
-            <div className="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto mb-4">
-              <AlertOctagon className="w-6 h-6" />
+        <div className="min-h-screen bg-black flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-zinc-950 border border-zinc-900 rounded p-6 text-center shadow-2xl">
+            <div className="w-10 h-10 rounded border border-rose-500/40 bg-black flex items-center justify-center mx-auto mb-4">
+              <AlertOctagon className="w-5 h-5 text-rose-500" />
             </div>
-            <h2 className="text-lg font-bold text-white mb-1">Recuperación de Plataforma</h2>
-            <p className="text-xs text-slate-400 mb-4">
+            <h2 className="text-base font-mono font-bold text-white mb-1 uppercase tracking-wide">Recuperación de Plataforma</h2>
+            <p className="text-[11px] text-zinc-500 mb-4 font-mono">
               Se detectó una discrepancia en el estado de la interfaz:
             </p>
-            <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-[11px] font-mono text-rose-300 text-left mb-6 overflow-auto max-h-32">
+            <div className="bg-black border border-zinc-900 rounded p-3 text-[11px] font-mono text-rose-400 text-left mb-6 overflow-auto max-h-32 border-l-2 border-rose-500">
               {this.state.error?.message || 'Error de renderizado desconocido'}
             </div>
             <button
               onClick={this.handleReset}
-              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-600/20"
+              className="w-full py-2.5 px-4 rounded bg-rose-600 hover:bg-rose-500 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 transition-all press-action"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Restablecer Sesión y Recargar</span>

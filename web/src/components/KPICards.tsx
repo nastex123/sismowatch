@@ -12,109 +12,110 @@ interface KPICardsProps {
 export const KPICards: React.FC<KPICardsProps> = ({ kpis, loading, onTsunamiClick, isTsunamiFilterActive }) => {
   if (loading || !kpis) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-28 rounded-xl bg-slate-900/60 border border-slate-800 animate-pulse p-4" />
+          <div key={i} className="h-24 bg-zinc-950 border border-zinc-900 animate-pulse p-4 rounded" />
         ))}
       </div>
     );
   }
 
-  const getMagColor = (mag: number | string) => {
+  const getMagUnderline = (mag: number | string) => {
     const val = Number(mag || 0);
-    if (val >= 7.0) return 'text-rose-400 bg-rose-500/10 border-rose-500/20';
-    if (val >= 5.0) return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
-    if (val >= 3.0) return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-    return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    if (val >= 7.0) return 'text-rose-400 border-b border-rose-500/90';
+    if (val >= 5.0) return 'text-rose-300 border-b border-rose-400/70';
+    if (val >= 3.0) return 'text-zinc-300 border-b border-zinc-500/70';
+    return 'text-zinc-400 border-b border-zinc-600/50';
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
       {/* Sismos en 30 Días */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-slate-700 transition-colors">
-        <div className="flex items-center justify-between text-slate-400 mb-2">
-          <span className="text-xs font-medium">Sismos (Últimos 30 Días)</span>
-          <Activity className="w-4 h-4 text-emerald-400" />
+      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+        <div className="flex items-center justify-between text-zinc-400 mb-1.5">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Total Sismos (30D)</span>
+          <Activity className="w-3.5 h-3.5 text-rose-400" />
         </div>
-        <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
-          {kpis.events_24h.toLocaleString()}
+        <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight font-mono">
+          {Number(kpis.events_24h || 0).toLocaleString()}
         </div>
-        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-          <span className="text-emerald-400 font-medium">Historial 30 Días</span> (USGS Global)
+        <p className="text-[11px] text-zinc-500 mt-1 flex items-center gap-1.5">
+          <span className="border-b border-zinc-700 pb-0.5 text-zinc-300 font-mono text-[10px]">USGS Global</span>
+          <span>Catálogo S3</span>
         </p>
       </div>
 
       {/* Magnitud Máxima */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-slate-700 transition-colors">
-        <div className="flex items-center justify-between text-slate-400 mb-2">
-          <span className="text-xs font-medium">Magnitud Máxima</span>
-          <Flame className="w-4 h-4 text-rose-400" />
+      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+        <div className="flex items-center justify-between text-zinc-400 mb-1.5">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Mag. Máxima</span>
+          <Flame className="w-3.5 h-3.5 text-rose-500" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
+          <span className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight font-mono">
             {Number(kpis.max_magnitude || 0).toFixed(1)}
           </span>
-          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${getMagColor(kpis.max_magnitude)}`}>
+          <span className={`text-[11px] font-mono pb-0.5 ${getMagUnderline(kpis.max_magnitude)}`}>
             Richter
           </span>
         </div>
-        <p className="text-[11px] text-slate-400 mt-1">Evento de mayor impacto</p>
+        <p className="text-[11px] text-zinc-500 mt-1">Pico máximo registrado</p>
       </div>
 
       {/* Magnitud Promedio */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-slate-700 transition-colors">
-        <div className="flex items-center justify-between text-slate-400 mb-2">
-          <span className="text-xs font-medium">Mag. Promedio</span>
-          <BarChart2 className="w-4 h-4 text-cyan-400" />
+      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action">
+        <div className="flex items-center justify-between text-zinc-400 mb-1.5">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Mag. Promedio</span>
+          <BarChart2 className="w-3.5 h-3.5 text-zinc-400" />
         </div>
-        <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
+        <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight font-mono">
           {Number(kpis.avg_magnitude || 0).toFixed(2)}
         </div>
-        <p className="text-[11px] text-slate-400 mt-1">Media móvil 24h</p>
+        <p className="text-[11px] text-zinc-500 mt-1">Media móvil global</p>
       </div>
 
       {/* Alertas de Tsunami */}
-      <div 
+      <div
         onClick={onTsunamiClick}
-        className={`bg-slate-900/80 border rounded-xl p-4 shadow-sm transition-all cursor-pointer ${
-          isTsunamiFilterActive 
-            ? 'border-cyan-400 bg-cyan-950/40 ring-1 ring-cyan-400' 
-            : 'border-slate-800 hover:border-cyan-500/50 hover:bg-slate-800/60'
+        className={`bg-zinc-950 border rounded p-4 shadow-sm transition-all cursor-pointer press-action ${
+          isTsunamiFilterActive
+            ? 'border-rose-500/80 bg-zinc-900/50'
+            : 'border-zinc-900 hover:border-zinc-800'
         }`}
         title="Clic para filtrar y ver alertas de tsunami"
       >
-        <div className="flex items-center justify-between text-slate-400 mb-2">
-          <span className="text-xs font-medium">Alertas Tsunami</span>
-          <Waves className={`w-4 h-4 ${Number(kpis.tsunami_alerts || 0) > 0 ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`} />
+        <div className="flex items-center justify-between text-zinc-400 mb-1.5">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Alertas Tsunami</span>
+          <Waves className={`w-3.5 h-3.5 ${Number(kpis.tsunami_alerts || 0) > 0 ? 'text-rose-400 animate-pulse' : 'text-zinc-600'}`} />
         </div>
-        <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight flex items-baseline gap-2">
+        <div className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight font-mono flex items-baseline gap-2">
           {Number(kpis.tsunami_alerts || 0)}
           {isTsunamiFilterActive && (
-            <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/20 px-1.5 py-0.5 rounded border border-cyan-500/30">
+            <span className="text-[10px] font-mono text-rose-300 border-b border-rose-500 pb-0.5">
               FILTRADO
             </span>
           )}
         </div>
-        <p className={`text-[11px] mt-1 font-medium ${Number(kpis.tsunami_alerts || 0) > 0 ? 'text-cyan-300' : 'text-slate-400'}`}>
-          {Number(kpis.tsunami_alerts || 0) > 0 ? '8 eventos detectados (clic para ver)' : 'Sin alertas activas'}
+        <p className={`text-[11px] mt-1 ${Number(kpis.tsunami_alerts || 0) > 0 ? 'text-rose-300' : 'text-zinc-500'}`}>
+          {Number(kpis.tsunami_alerts || 0) > 0 ? '8 detectados (filtrar)' : 'Sin alertas activas'}
         </p>
       </div>
 
       {/* SLA de Calidad de Datos */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-slate-700 transition-colors col-span-2 md:col-span-1">
-        <div className="flex items-center justify-between text-slate-400 mb-2">
-          <span className="text-xs font-medium">Calidad de Datos</span>
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+      <div className="bg-zinc-950 border border-zinc-900 rounded p-4 shadow-sm hover:border-zinc-800 transition-all press-action col-span-2 md:col-span-1">
+        <div className="flex items-center justify-between text-zinc-400 mb-1.5">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Calidad PySpark</span>
+          <CheckCircle2 className="w-3.5 h-3.5 text-rose-400" />
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
+          <span className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight font-mono">
             {Number(kpis.quality_score || 0).toFixed(1)}
           </span>
-          <span className="text-xs text-emerald-400 font-bold">%</span>
+          <span className="text-xs text-rose-400 font-mono font-bold">%</span>
         </div>
-        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-          <Clock className="w-3 h-3 text-slate-500" />
-          <span className="truncate">Act. {new Date(kpis.last_updated_at).toLocaleTimeString()}</span>
+        <p className="text-[11px] text-zinc-500 mt-1 flex items-center gap-1 font-mono">
+          <Clock className="w-3 h-3 text-zinc-600" />
+          <span className="truncate">Sinc. {new Date(kpis.last_updated_at).toLocaleTimeString()}</span>
         </p>
       </div>
     </div>

@@ -617,37 +617,71 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
     # 1. Sanitizar input contra Prompt Injection
     cleaned_prompt = re.sub(r"(?i)(ignore previous instructions|drop table|delete from|update|insert into)", "", prompt)
 
-    # 2. Obtener resumen de Gold para dar contexto al asistente
+    # 2. Obtener resumen enriquecido de Gold y Silver en tiempo real
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            # KPIs consolidados
             cur.execute("""
-                SELECT events_24h, max_magnitude, avg_magnitude, tsunami_alerts, quality_score 
+                SELECT events_24h, max_magnitude, avg_magnitude, tsunami_alerts, quality_score, last_updated_at 
                 FROM gold.kpis_24h ORDER BY last_updated_at DESC LIMIT 1;
             """)
             kpis = cur.fetchone() or {}
 
+            # Top 5 sismos más fuertes en 24 horas
             cur.execute("""
-                SELECT mag, place, time_utc, depth_km, tsunami 
+                SELECT mag, place, time_utc, depth_km, tsunami, sig, is_swarm 
+                FROM silver.events 
+                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                ORDER BY mag DESC LIMIT 5;
+            """)
+            largest_events = cur.fetchall()
+
+            # Top 5 sismos más recientes
+            cur.execute("""
+                SELECT mag, place, time_utc, depth_km, tsunami, sig, is_swarm 
                 FROM silver.events 
                 ORDER BY time_utc DESC LIMIT 5;
             """)
             recent_events = cur.fetchall()
+
+            # Regiones activas
+            cur.execute("""
+                SELECT region_name, event_count, max_magnitude, avg_depth_km 
+                FROM gold.active_regions 
+                ORDER BY event_count DESC LIMIT 5;
+            """)
+            active_regions = cur.fetchall()
+
+            # Enjambres y anomalías recientes
+            cur.execute("""
+                SELECT mag, place, time_utc, z_score_mag, is_swarm 
+                FROM silver.events 
+                WHERE is_swarm = TRUE OR z_score_mag > 2.0 
+                ORDER BY time_utc DESC LIMIT 3;
+            """)
+            anomalies = cur.fetchall()
     finally:
         conn.close()
 
     context_str = (
-        f"Contexto actual de SismoWatch (Capa Gold):\n"
-        f"- Sismos en 24h: {kpis.get('events_24h', 0)}\n"
-        f"- Magnitud máxima: {kpis.get('max_magnitude', 0.0)}\n"
-        f"- Magnitud promedio: {kpis.get('avg_magnitude', 0.0)}\n"
-        f"- Alertas de tsunami: {kpis.get('tsunami_alerts', 0)}\n"
-        f"- Eventos más recientes: {json.dumps([dict(e) for e in recent_events], default=str)}\n"
+        f"DATOS REALES CONSOLIDADOS EN LA CAPA GOLD Y SILVER (EN VIVO):\n"
+        f"1. Métricas Globales 24h: {kpis.get('events_24h', 0)} sismos registrados, Magnitud Máxima: {kpis.get('max_magnitude', 0.0)}, Magnitud Promedio: {kpis.get('avg_magnitude', 0.0)}, Alertas de Tsunami: {kpis.get('tsunami_alerts', 0)}, SLA Calidad: {kpis.get('quality_score', 100.0)}%.\n"
+        f"2. Sismos más Fuertes (Top 5 en 24h):\n{json.dumps([dict(e) for e in largest_events], default=str, ensure_ascii=False, indent=2)}\n"
+        f"3. Sismos más Recientes (Top 5):\n{json.dumps([dict(e) for e in recent_events], default=str, ensure_ascii=False, indent=2)}\n"
+        f"4. Regiones más Activas:\n{json.dumps([dict(r) for r in active_regions], default=str, ensure_ascii=False, indent=2)}\n"
+        f"5. Enjambres y Anomalías Sísmicas Detectadas:\n{json.dumps([dict(a) for a in anomalies], default=str, ensure_ascii=False, indent=2)}\n"
     )
 
     full_ai_prompt = (
-        f"Eres el asistente analítico inteligente de SismoWatch. Responde de forma clara, técnica y concisa a la pregunta del usuario utilizando exclusivamente la información de la capa Gold.\n\n"
-        f"{context_str}\n"
+        f"Eres el Asistente Analítico Inteligente de SismoWatch (Capa Gold y Silver).\n"
+        f"Tu misión es responder con alta precisión técnica, claridad y datos 100% verídicos basados en la información geológica real provista.\n\n"
+        f"REGLAS OBLIGATORIAS:\n"
+        f"- Basa tus afirmaciones en los datos reales del contexto provisto (PostgreSQL Medallón en vivo). Si te preguntan por sismos recientes, máximos, promedios, alertas de tsunami o enjambres, cita los números exactos y ubicaciones reales.\n"
+        f"- SIEMPRE que responda sobre estadísticas, comparativas, resumen de eventos o arquitectura, GENERA AL MENOS UN DIAGRAMA MERMAID (usando ```mermaid ... ```) para ilustrar visualmente la respuesta (por ejemplo un flowchart LR, pie chart, o diagramas de relación).\n"
+        f"- Si el usuario solicita un diagrama explícitamente, diséñalo completo y detallado en sintaxis Mermaid válida.\n"
+        f"- Tono: Profesional, conciso y técnico.\n\n"
+        f"{context_str}\n\n"
         f"Pregunta del usuario: {cleaned_prompt}\n"
     )
 
@@ -655,31 +689,66 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
     reply_text = None
     engine_used = "deterministic-fallback"
 
-    # 1. Modo OpenCode CLI (Predeterminado)
+    # 1. Modo OpenCode CLI (Conectado al servidor OpenCode o ejecución local)
     if target_provider == "opencode" and os.path.exists(OPENCODE_CLI_PATH):
         try:
             env = os.environ.copy()
             env["HOME"] = "/home/Coder"
             env["USER"] = "Coder"
-            res = subprocess.run(
-                [OPENCODE_CLI_PATH, "run", "-m", "opencode/nemotron-3.5-lightning-free", full_ai_prompt],
-                capture_output=True,
-                text=True,
-                timeout=7,
-                env=env
-            )
-            raw_out = (res.stdout or "").strip()
-            lines = [l for l in raw_out.splitlines() if not l.startswith("> build")]
-            clean_out = "\n".join(lines).strip()
-            if res.returncode == 0 and clean_out:
+
+            # Intentar primero con attach al servidor OpenCode (puerto 4096)
+            cmd = [
+                OPENCODE_CLI_PATH, "run",
+                "--attach", "http://172.24.0.1:4096",
+                "--format", "json",
+                "-m", "opencode/beam-free",
+                full_ai_prompt
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=25, env=env)
+
+            # Si attach falló, intentar ejecución directa
+            if res.returncode != 0:
+                logger.warning(f"Attach falló (rc={res.returncode}), intentando directo...")
+                cmd_direct = [
+                    OPENCODE_CLI_PATH, "run",
+                    "--pure",
+                    "--format", "json",
+                    "-m", "opencode/beam-free",
+                    full_ai_prompt
+                ]
+                res = subprocess.run(cmd_direct, capture_output=True, text=True, timeout=15, env=env)
+
+            # Extraer las partes de texto del output JSON
+            text_parts = []
+            for line in res.stdout.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ev = json.loads(line)
+                    if ev.get("type") == "text":
+                        t = ev.get("part", {}).get("text", "")
+                        if t:
+                            text_parts.append(t)
+                except Exception:
+                    pass
+
+            clean_out = "".join(text_parts).strip()
+
+            # Si no se obtuvo JSON válido pero hay stdout, limpiar salida estándar
+            if not clean_out and res.stdout:
+                lines = [l for l in res.stdout.splitlines() if not l.startswith(("> build", "$ ", "✱ ", "→ ", "◈ "))]
+                clean_out = "\n".join(lines).strip()
+
+            if clean_out:
                 reply_text = clean_out
-                engine_used = "opencode (nemotron-3.5-lightning-free)"
+                engine_used = "opencode (beam-free)"
             else:
-                logger.warning(f"OpenCode respuesta vacía o error: {res.stderr}")
+                logger.warning(f"OpenCode no generó texto: {res.stderr[:200] if res.stderr else 'vacio'}")
         except subprocess.TimeoutExpired:
-            logger.warning("OpenCode excedió tiempo de espera (cuota gratuita cloud saturada temporalmente).")
+            logger.warning("OpenCode excedió tiempo de espera.")
         except Exception as e:
-            logger.warning(f"Falla de OpenCode CLI en chat: {e}")
+            logger.warning(f"Falla de OpenCode en chat: {e}")
 
     # 2. Modo Google Gemini API
     elif target_provider == "gemini":
@@ -699,21 +768,34 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         except Exception as err:
             logger.warning(f"Falla de Gemini en chat: {err}")
 
-    # 3. Modo Fallback / Reglas Deterministas
+    # 3. Modo Fallback / Reglas Deterministas Enriquecidas
     if not reply_text:
+        max_m = kpis.get("max_magnitude", 0.0)
+        avg_m = kpis.get("avg_magnitude", 0.0)
+        total_e = kpis.get("events_24h", 0)
+        tsunami_c = kpis.get("tsunami_alerts", 0)
+        place_max = largest_events[0]["place"] if largest_events else "Sin registros"
+
         if target_provider == "opencode":
-            engine_used = "opencode-fallback (cuota cloud saturada -> motor gold)"
+            engine_used = "opencode-fallback (motor analítico gold)"
         elif target_provider == "gemini":
-            engine_used = "gemini-fallback (sin API key -> motor gold)"
+            engine_used = "gemini-fallback (motor analítico gold)"
         else:
-            engine_used = "motor determinista (sql gold)"
+            engine_used = "motor analítico determinista (sql gold)"
 
         reply_text = (
-            f"Basado en los datos consolidados en la capa Gold de SismoWatch: "
-            f"Se han registrado {kpis.get('events_24h', 0)} sismos en las últimas 24 horas con una magnitud promedio de {kpis.get('avg_magnitude', 0.0)} "
-            f"y un máximo de {kpis.get('max_magnitude', 0.0)}. "
-            f"El evento más reciente se localizó en: {recent_events[0]['place'] if recent_events else 'Sin registros'} "
-            f"(Mag: {recent_events[0]['mag'] if recent_events else 0.0})."
+            f"**Resumen Analítico en Tiempo Real (Capa Gold)**:\n\n"
+            f"- **Actividad 24 Horas**: Se han procesado **{total_e}** sismos con una magnitud promedio de **M {avg_m}**.\n"
+            f"- **Evento de Mayor Intensidad**: **M {max_m}** localizado en *{place_max}*.\n"
+            f"- **Alertas de Tsunami**: **{tsunami_c}** evento(s) con potencial de tsunami activo.\n"
+            f"- **SLA de Calidad**: {kpis.get('quality_score', 100.0)}% de datos validados por PySpark.\n\n"
+            f"```mermaid\n"
+            f"flowchart TD\n"
+            f"    A[\"🌐 Sismicidad Global (24h): {total_e} eventos\"] --> B[\"⚡ Sismo Máximo: M {max_m}\"]\n"
+            f"    A --> C[\"📊 Magnitud Promedio: M {avg_m}\"]\n"
+            f"    A --> D[\"🌊 Alertas Tsunami: {tsunami_c}\"]\n"
+            f"    B --> E[\"📍 {place_max[:32]}\"]\n"
+            f"```"
         )
 
     return {

@@ -8,17 +8,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        slate: {
-          850: '#151f32',
-          900: '#0f172a',
-          950: '#090d16',
+        zinc: {
+          850: '#1e1e24',
+          900: '#141417',
+          925: '#0e0e11',
+          950: '#08080a',
         },
-        seismic: {
-          green: '#10b981',
-          amber: '#f59e0b',
-          orange: '#f97316',
-          red: '#ef4444',
-          purple: '#a855f7'
+        rose: {
+          450: '#fb567b',
+          550: '#e11d48',
         }
       },
       animation: {
