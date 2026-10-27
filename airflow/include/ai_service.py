@@ -62,7 +62,7 @@ def get_gold_computed_metrics() -> Dict[str, Any]:
             cur.execute("""
                 SELECT id, mag, place, time_utc, depth_km, tsunami 
                 FROM silver.events 
-                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '24 hours' 
+                WHERE time_utc >= CURRENT_TIMESTAMP - INTERVAL '30 days' 
                   AND (mag >= 4.0 OR tsunami > 0)
                 ORDER BY mag DESC LIMIT 5;
             """)
@@ -90,9 +90,9 @@ def generate_deterministic_report(metrics: Dict[str, Any]) -> Dict[str, Any]:
     regions_str = ", ".join([f"{r['region']} ({r['events']} sismos)" for r in metrics["top_regions"]]) or "No se identificaron zonas con alta concentración"
 
     summary = (
-        f"Durante las últimas 24 horas se registraron un total de {total} eventos sísmicos a nivel global, "
+        f"Durante el periodo de monitoreo consolidado (últimos 30 días) se registraron un total de {total} eventos sísmicos a nivel global, "
         f"con una magnitud promedio de {avg_m} y un valor máximo alcanzado de {max_m}. "
-        f"Se emitieron {tsunami} alertas de tsunami. Las zonas de mayor recurrencia fueron: {regions_str}."
+        f"Se emitieron {tsunami} alertas de tsunami oficiales. Las zonas de mayor recurrencia fueron: {regions_str}."
     )
 
     return {
@@ -164,7 +164,7 @@ def verify_anti_hallucination(summary_text: str, metrics: Dict[str, Any]) -> boo
 def generate_and_save_ai_report() -> Dict[str, Any]:
     metrics = get_gold_computed_metrics()
     prompt = f"""
-Eres el analista geofísico principal de SismoWatch. Redacta un resumen ejecutivo formal de 1 párrafo sobre la actividad sísmica de las últimas 24 horas usando estrictamente los siguientes datos calculados por código:
+Eres el analista geofísico principal de SismoWatch. Redacta un resumen ejecutivo formal de 1 párrafo sobre la actividad sísmica consolidada (últimos 30 días) usando estrictamente los siguientes datos calculados por código:
 - Total eventos sísmicos: {metrics['total_events_24h']}
 - Magnitud máxima registrada: {metrics['max_magnitude']}
 - Magnitud promedio: {metrics['avg_magnitude']}

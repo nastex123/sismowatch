@@ -133,7 +133,22 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
             detail="Credenciales de autenticación no proporcionadas.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    token = credentials.credentials
+    return validate_token_str(credentials.credentials)
+
+def get_sse_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    token: Optional[str] = Query(None)
+) -> dict:
+    raw_token = credentials.credentials if credentials else token
+    if not raw_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales de autenticación no proporcionadas.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return validate_token_str(raw_token)
+
+def validate_token_str(token: str) -> dict:
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         email: str = payload.get("sub")
@@ -389,7 +404,7 @@ def export_reports(format: str = Query("csv", pattern="^(csv|pdf)$"), user: dict
 # Canal de Tiempo Real (Server-Sent Events - SSE)
 # ------------------------------------------------------------------------------
 @app.get("/api/stream", tags=["Tiempo Real"])
-async def stream_live_events(user: dict = Depends(require_viewer)):
+async def stream_live_events(user: dict = Depends(get_sse_user)):
     async def event_generator():
         last_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=10)
         while True:

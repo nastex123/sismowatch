@@ -64,7 +64,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ status, isAdmin, onR
           <div className="text-sm font-bold text-white font-mono mt-1">
             {status?.last_ingested_at ? new Date(status.last_ingested_at).toLocaleString() : 'En espera de primer lote'}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Sondeo automático cada 5 minutos</p>
+          <p className="text-[11px] text-slate-400 mt-1">Sondeo automático cada 30 segundos</p>
         </div>
 
         {/* Último Evento en Gold */}

@@ -1,6 +1,6 @@
 """
 # DAG: sismowatch_ingestion
-Consulta periódica (cada 5 minutos) al feed público de USGS (`all_hour.geojson`)
+Consulta periódica (cada 30 segundos) al feed público de USGS (`all_hour.geojson`)
 e inserción idempotente en la capa Bronze (`bronze.raw_events`).
 Al completar satisfactoriamente, dispara el pipeline analítico de transformación.
 """
@@ -14,9 +14,9 @@ from include.usgs_client import fetch_and_ingest_feed
 
 DOC_MD = """
 # SismoWatch - Ingesta Continua (Bronze)
-- **Frecuencia**: Cada 5 minutos (`*/5 * * * *`).
+- **Frecuencia**: Cada 30 segundos (`timedelta(seconds=30)`).
 - **Origen**: `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson`
-- **Destino**: `bronze.raw_events` en PostgreSQL.
+- **Destino**: `bronze.raw_events` en PostgreSQL y MinIO S3 (`sismowatch-bronze`).
 - **Idempotencia**: UPSERT garantizado mediante SHA-256 e ID del evento.
 """
 
@@ -24,19 +24,19 @@ default_args = {
     "owner": "sismowatch_data_team",
     "depends_on_past": False,
     "retries": 3,
-    "retry_delay": timedelta(seconds=30),
+    "retry_delay": timedelta(seconds=15),
     "retry_exponential_backoff": True,
-    "max_retry_delay": timedelta(minutes=2),
-    "execution_timeout": timedelta(minutes=3),
+    "max_retry_delay": timedelta(minutes=1),
+    "execution_timeout": timedelta(minutes=2),
     "on_failure_callback": task_failure_alert,
 }
 
 with DAG(
     dag_id="sismowatch_ingestion",
     default_args=default_args,
-    description="Sondeo periódico e ingesta en Bronze de sismos mundiales USGS",
+    description="Sondeo periódico e ingesta en Bronze de sismos mundiales USGS cada 30 segundos",
     doc_md=DOC_MD,
-    schedule_interval="*/5 * * * *",
+    schedule=timedelta(seconds=30),
     start_date=datetime(2026, 1, 1),
     catchup=False,
     max_active_runs=1,
