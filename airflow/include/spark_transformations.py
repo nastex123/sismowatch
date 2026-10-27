@@ -7,7 +7,32 @@ from typing import Dict, Any, List, Tuple
 from airflow.exceptions import AirflowException
 from include.db_helpers import get_connection, get_engine
 
+try:
+    from pyspark.sql import SparkSession, Window, functions as F
+    HAS_PYSPARK = True
+except ImportError:
+    HAS_PYSPARK = False
+
 logger = logging.getLogger("airflow.task")
+
+def get_spark_session(app_name: str = "SismoWatch-Medallion-Silver") -> Any:
+    """Inicializa o recupera una sesión de PySpark optimizada para el contenedor Airflow."""
+    if not HAS_PYSPARK:
+        return None
+    try:
+        spark = (
+            SparkSession.builder
+            .master("local[2]")
+            .appName(app_name)
+            .config("spark.driver.memory", "512m")
+            .config("spark.sql.shuffle.partitions", "2")
+            .config("spark.ui.enabled", "false")
+            .getOrCreate()
+        )
+        return spark
+    except Exception as exc:
+        logger.warning(f"No fue posible instanciar SparkSession: {exc}. Usando motor nativo en memoria.")
+        return None
 
 def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
     if not batch_id:
@@ -119,20 +144,49 @@ def run_pyspark_pipeline(batch_id: str = None) -> Dict[str, Any]:
 
     logger.info(f"Resultados de Calidad: Evaluados={total_evaluated}, Aprobados={passed_count}, Rechazados={failed_count}, Score={quality_score}%")
 
-    # 3. Cálculo de Z-Score y Detección de Enjambres Sísmicos
+    # 3. Cálculo de Z-Score y Detección de Enjambres Sísmicos con PySpark
     if valid_events:
-        magnitudes = [e["mag"] for e in valid_events if e["mag"] is not None]
-        mean_mag = sum(magnitudes) / len(magnitudes) if magnitudes else 0.0
-        variance = sum((m - mean_mag) ** 2 for m in magnitudes) / len(magnitudes) if len(magnitudes) > 1 else 1.0
-        std_mag = math.sqrt(variance) if variance > 0 else 1.0
+        spark = get_spark_session(f"SismoWatch-Silver-Batch-{batch_id}")
+        spark_used = False
 
+        if spark:
+            try:
+                logger.info(f"Ejecutando enriquecimiento estadístico con PySpark 3.5 en memoria para {len(valid_events)} registros...")
+                spark_df = spark.createDataFrame(valid_events)
+                
+                # Cálculo de Z-Score distribuido usando Window Functions de PySpark
+                win = Window.partitionBy()
+                mean_m = F.avg("mag").over(win)
+                std_m = F.stddev("mag").over(win)
+
+                scored_df = spark_df.withColumn(
+                    "z_score_mag",
+                    F.when(
+                        (F.col("mag").isNotNull()) & (std_m > 0),
+                        F.round((F.col("mag") - mean_m) / std_m, 3)
+                    ).otherwise(0.0)
+                )
+
+                valid_events = [row.asDict() for row in scored_df.collect()]
+                spark_used = True
+                logger.info(f"Transformación PySpark completada exitosamente (Spark App: SismoWatch-Silver-Batch-{batch_id}).")
+            except Exception as sp_err:
+                logger.warning(f"Excepción en ejecución de DataFrame PySpark: {sp_err}. Ejecutando cálculo alternativo.")
+
+        if not spark_used:
+            magnitudes = [e["mag"] for e in valid_events if e["mag"] is not None]
+            mean_mag = sum(magnitudes) / len(magnitudes) if magnitudes else 0.0
+            variance = sum((m - mean_mag) ** 2 for m in magnitudes) / len(magnitudes) if len(magnitudes) > 1 else 1.0
+            std_mag = math.sqrt(variance) if variance > 0 else 1.0
+
+            for event in valid_events:
+                if event["mag"] is not None and std_mag > 0:
+                    event["z_score_mag"] = round((event["mag"] - mean_mag) / std_mag, 3)
+                else:
+                    event["z_score_mag"] = 0.0
+
+        # Detección de enjambre espacio-temporal (conteo en radio de 0.5 grados y 6 horas)
         for event in valid_events:
-            if event["mag"] is not None and std_mag > 0:
-                event["z_score_mag"] = round((event["mag"] - mean_mag) / std_mag, 3)
-            else:
-                event["z_score_mag"] = 0.0
-
-            # Detección de enjambre espacio-temporal (conteo en radio de 0.5 grados y 6 horas)
             e_lat, e_lon, e_time = event["latitude"], event["longitude"], event["time_epoch"]
             cluster_count = sum(
                 1 for other in valid_events
