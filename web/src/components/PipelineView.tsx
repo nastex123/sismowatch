@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { PipelineStatus, QuarantineRecord, SeismicEvent, TimeRange } from '../types';
-import { Database, AlertOctagon, CheckCircle2, RefreshCw, Calendar, Play, Clock, ShieldAlert, Activity, FileSpreadsheet } from 'lucide-react';
-import { apiService } from '../services/api';
+import React from 'react';
+import { PipelineStatus, SeismicEvent, TimeRange } from '../types';
+import { Database, AlertOctagon, CheckCircle2, RefreshCw, Calendar, Clock, Activity, FileSpreadsheet } from 'lucide-react';
 
 interface PipelineViewProps {
   status: PipelineStatus | null;
@@ -14,53 +13,12 @@ interface PipelineViewProps {
 
 export const PipelineView: React.FC<PipelineViewProps> = ({
   status,
-  isAdmin,
+  isAdmin: _isAdmin,
   onRefresh,
   events = [],
   timeRange = '30d',
   onTimeRangeChange
 }) => {
-  const [quarantine, setQuarantine] = useState<QuarantineRecord[]>([]);
-  const [loadingQuarantine, setLoadingQuarantine] = useState(false);
-  const [backfillStart, setBackfillStart] = useState('2026-09-27');
-  const [backfillEnd, setBackfillEnd] = useState('2026-10-27');
-  const [backfillMag, setBackfillMag] = useState(2.5);
-  const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
-  const [triggering, setTriggering] = useState(false);
-
-  useEffect(() => {
-    if (isAdmin) {
-      loadQuarantine();
-    }
-  }, [isAdmin]);
-
-  const loadQuarantine = async () => {
-    setLoadingQuarantine(true);
-    try {
-      const data = await apiService.getQuarantine();
-      setQuarantine(data);
-    } catch (e: any) {
-      console.warn('Error cargando cuarentena:', e.message);
-    } finally {
-      setLoadingQuarantine(false);
-    }
-  };
-
-  const handleTriggerBackfill = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setTriggering(true);
-    setBackfillMsg(null);
-    try {
-      const res = await apiService.triggerBackfill(backfillStart, backfillEnd, backfillMag);
-      setBackfillMsg('Backfill histórico enviado exitosamente a Airflow.');
-      setTimeout(() => onRefresh(), 3000);
-    } catch (err: any) {
-      setBackfillMsg(`Falla al disparar backfill: ${err.message}`);
-    } finally {
-      setTriggering(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Selector de Rango Temporal en Pipeline */}
@@ -273,122 +231,6 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
           </table>
         </div>
       </div>
-
-      {/* Módulo Exclusivo Admin: Disparador de Backfill y Cuarentena */}
-      {isAdmin && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Formulario de Backfill Histórico */}
-          <div className="bg-zinc-950 border border-zinc-900 rounded p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-2 border-b border-zinc-900 pb-2">
-              <Calendar className="w-3.5 h-3.5 text-rose-400" />
-              <h4 className="text-xs font-mono font-bold text-white uppercase tracking-wide">Backfill Histórico</h4>
-            </div>
-            <p className="text-[11px] text-zinc-500 mb-4 font-mono">
-              Carga parametrizada de sismos históricos de USGS directo a la capa Bronze S3.
-            </p>
-
-            <form onSubmit={handleTriggerBackfill} className="space-y-3 text-xs font-mono">
-              <div>
-                <label className="block text-zinc-400 mb-1">Fecha Inicio (YYYY-MM-DD):</label>
-                <input
-                  type="date"
-                  value={backfillStart}
-                  onChange={(e) => setBackfillStart(e.target.value)}
-                  className="w-full bg-black border border-zinc-850 rounded p-1.5 text-white font-mono focus:border-rose-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1">Fecha Fin (YYYY-MM-DD):</label>
-                <input
-                  type="date"
-                  value={backfillEnd}
-                  onChange={(e) => setBackfillEnd(e.target.value)}
-                  className="w-full bg-black border border-zinc-850 rounded p-1.5 text-white font-mono focus:border-rose-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1">Magnitud Mínima:</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="1.0"
-                  max="9.0"
-                  value={backfillMag}
-                  onChange={(e) => setBackfillMag(parseFloat(e.target.value))}
-                  className="w-full bg-black border border-zinc-850 rounded p-1.5 text-white font-mono focus:border-rose-500"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={triggering}
-                className="w-full mt-2 py-2 px-4 rounded bg-rose-600 hover:bg-rose-500 disabled:opacity-50 font-mono font-bold text-white transition-all press-action flex items-center justify-center gap-2"
-              >
-                <Play className="w-3.5 h-3.5" />
-                <span>{triggering ? 'Enviando...' : 'Lanzar Backfill en Airflow'}</span>
-              </button>
-            </form>
-
-            {backfillMsg && (
-              <p className="mt-3 p-2 border-b border-rose-500/80 text-[11px] text-rose-300 font-mono">
-                {backfillMsg}
-              </p>
-            )}
-          </div>
-
-          {/* Tabla de Registros en Cuarentena (silver.rejected_events) */}
-          <div className="lg:col-span-2 bg-zinc-950 border border-zinc-900 rounded p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2 border-b border-zinc-900 pb-2">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-                <h4 className="text-xs font-mono font-bold text-white uppercase tracking-wide">
-                  Auditoría de Cuarentena (Silver)
-                </h4>
-              </div>
-              <span className="text-[11px] font-mono text-zinc-500">{quarantine.length} anomalías</span>
-            </div>
-            <p className="text-[11px] text-zinc-500 mb-3 font-mono">
-              Registros aislados por no satisfacer las compuertas de calidad.
-            </p>
-
-            <div className="overflow-x-auto max-h-72">
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-black text-zinc-500 uppercase text-[10px] tracking-wider border-b border-zinc-900 sticky top-0">
-                  <tr>
-                    <th className="py-2 px-3">Raw ID</th>
-                    <th className="py-2 px-3">Motivo de Rechazo</th>
-                    <th className="py-2 px-3">Fecha Aislamiento</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-900/60 text-[11px] text-zinc-300">
-                  {quarantine.length > 0 ? (
-                    quarantine.map((q) => (
-                      <tr key={q.id} className="hover:bg-zinc-900/40 transition-colors">
-                        <td className="py-2 px-3 text-rose-400 font-bold">{q.raw_id}</td>
-                        <td className="py-2 px-3 text-zinc-300 font-sans">{q.rejection_reason}</td>
-                        <td className="py-2 px-3 text-zinc-500 whitespace-nowrap">
-                          {new Date(q.failed_at).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="py-6 text-center text-zinc-500">
-                        No hay registros en cuarentena. La totalidad de los lotes evaluados ha sido conforme.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, X, Cpu, Table } from 'lucide-react';
+import { Bot, Send, X, Cpu, Table, Trash2, BarChart3, PieChart as PieIcon } from 'lucide-react';
 import { apiService } from '../services/api';
 import { ChatMessage } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -9,20 +9,47 @@ interface ChatbotDrawerProps {
   onClose: () => void;
 }
 
+const CHAT_STORAGE_KEY = 'sismowatch_chat_history';
+
+const defaultWelcomeMessage: ChatMessage = {
+  id: 'welcome',
+  sender: 'assistant',
+  text: '¡Hola! Soy el asistente analítico de SismoWatch impulsado por Gemini 3.5 Flash Lite. Puedo responder tus consultas sobre la actividad sísmica en tiempo real, generar tablas comparativas estructuradas y gráficas analíticas interactivas de barras y circulares a ultra-alta velocidad.',
+  timestamp: new Date().toLocaleTimeString(),
+  engine: 'Gemini 3.5 Flash Lite'
+};
+
 export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose }) => {
   const [provider, setProvider] = useState<'gemini' | 'opencode' | 'fallback'>('gemini');
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      sender: 'assistant',
-      text: '¡Hola! Soy el asistente analítico de SismoWatch impulsado por Gemini 3.5 Flash Lite. Puedo responder tus consultas sobre la actividad sísmica en tiempo real, generar tablas comparativas estructuradas y diagramas analíticos Mermaid a ultra-alta velocidad.',
-      timestamp: new Date().toLocaleTimeString(),
-      engine: 'Gemini 3.5 Flash Lite'
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Ignorar error de parsing
     }
-  ]);
+    return [defaultWelcomeMessage];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Persistir mensajes en localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    } catch (e) {
+      console.warn('Falla al guardar historial de chat:', e);
+    }
+  }, [messages]);
+
+  const handleClearHistory = () => {
+    localStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([defaultWelcomeMessage]);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -89,15 +116,24 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
               <h4 className="text-xs font-mono font-bold text-white tracking-wide uppercase">Asistente SismoWatch</h4>
               <span className="text-[10px] font-mono border-b border-rose-500/60 pb-0.5 text-rose-400">OpenCode + Gold</span>
             </div>
-            <p className="text-[10px] text-zinc-500 font-mono">Consultas en Tiempo Real con Diagramas</p>
+            <p className="text-[10px] text-zinc-500 font-mono">Consultas en Tiempo Real con Gráficas</p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded text-zinc-500 hover:text-white transition-all press-action"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleClearHistory}
+            title="Limpiar Historial de Conversación"
+            className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 transition-all press-action"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 rounded text-zinc-500 hover:text-white transition-all press-action"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Selector de Modo de IA */}
@@ -140,7 +176,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
         </div>
       </div>
 
-      {/* Sugerencias Rápidas con Diagramas y Tablas */}
+      {/* Sugerencias Rápidas con Gráficas y Tablas */}
       <div className="bg-black px-3 py-2 border-b border-zinc-900 flex items-center gap-2 overflow-x-auto text-[11px] font-mono text-zinc-400">
         <button
           onClick={() => handleSend('Genera una tabla comparativa con los 5 sismos más fuertes registrados hoy')}
@@ -150,22 +186,24 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onClose })
           Tabla Top Sismos
         </button>
         <button
-          onClick={() => handleSend('¿Cuáles son los sismos más fuertes de hoy? Muestra un diagrama')}
-          className="whitespace-nowrap px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
+          onClick={() => handleSend('¿Cuáles son los sismos más fuertes de hoy? Muestra una gráfica de barras')}
+          className="whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
         >
-          Top Sismos + Diagrama
+          <BarChart3 className="w-3 h-3 text-rose-400" />
+          Top Sismos (Barras)
         </button>
         <button
-          onClick={() => handleSend('Explica la arquitectura Medallón de SismoWatch con un diagrama Mermaid')}
-          className="whitespace-nowrap px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
+          onClick={() => handleSend('Muestra la distribución de sismos por nivel de severidad en una gráfica circular')}
+          className="whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
         >
-          Diagrama Arquitectura
+          <PieIcon className="w-3 h-3 text-rose-400" />
+          Severidad (Circular)
         </button>
         <button
-          onClick={() => handleSend('¿Hay alertas de tsunami activas y cuáles son las zonas de riesgo?')}
+          onClick={() => handleSend('Compara la actividad de hoy con la de ayer y genera una gráfica de barras')}
           className="whitespace-nowrap px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-zinc-300 transition-all press-action"
         >
-          Alertas de Tsunami
+          Comparativa Hoy vs Ayer
         </button>
       </div>
 

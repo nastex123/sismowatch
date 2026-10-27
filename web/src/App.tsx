@@ -20,6 +20,13 @@ export const App: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'reports' | 'pipeline'>('dashboard');
+
+  // Si el usuario tiene rol viewer, restringir estrictamente la navegación a solo Dashboard
+  useEffect(() => {
+    if (session && session.role !== 'admin' && activeTab !== 'dashboard') {
+      setActiveTab('dashboard');
+    }
+  }, [session, activeTab]);
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [kpis, setKpis] = useState<KPIStats | null>(null);
   const [events, setEvents] = useState<SeismicEvent[]>([]);

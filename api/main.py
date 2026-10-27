@@ -785,9 +785,15 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
         f"- Basa tus afirmaciones en los datos reales del contexto provisto (PostgreSQL Medallón en vivo). Si te preguntan por sismos recientes, máximos, promedios, alertas de tsunami o enjambres, cita los números exactos y ubicaciones reales.\n"
         f"- SOPORTE DE TABLAS MARKDOWN: Si el usuario solicita tablas, comparativas, listas tabuladas o desgloses, FORMATEA OBLIGATORIAMENTE la información en tablas Markdown estándar (| Columna 1 | Columna 2 | ...) con encabezados y separadores claros.\n"
         f"- FORMATO MARKDOWN RICO: Utiliza negritas, listas y bloques para facilitar la lectura analítica.\n"
-        f"- SIEMPRE que responda sobre estadísticas, comparativas, resumen de eventos o arquitectura, GENERA AL MENOS UN DIAGRAMA MERMAID (usando ```mermaid ... ```) para ilustrar visualmente la respuesta (por ejemplo un flowchart LR, o diagramas de relación).\n"
-        f"- SINTAXIS MERMAID ESTRICTA: En diagramas Mermaid (flowchart TD/LR), TODAS las etiquetas de los nodos deben estar obligatoriamente entre comillas dobles, por ejemplo: A[\"Texto con (paréntesis) o :\"] --> B[\"Otro texto\"]. NUNCA coloques paréntesis, dos puntos o barras dentro de corchetes sin comillas dobles, ya que causa errores de sintaxis.\n"
-        f"- Si el usuario solicita un diagrama explícitamente, diséñalo completo y detallado en sintaxis Mermaid válida.\n"
+        f"- GRÁFICAS INTERACTIVAS (REEMPLAZO DE DIAGRAMAS): NO generes diagramas de flujo Mermaid. En su lugar, siempre que ilustres estadísticas, comparativas o distribuciones, GENERA OBLIGATORIAMENTE GRÁFICAS INTERACTIVAS usando bloques ```chart con formato JSON estructurado:\n"
+        f"  1. Gráfica de Barras (para comparar magnitudes, conteos por día o sismos destacados):\n"
+        f"  ```chart\n"
+        f"  {{\"type\": \"bar\", \"title\": \"Comparativa de Magnitudes\", \"data\": [{{\"label\": \"Nombre\", \"value\": 5.8}}]}}\n"
+        f"  ```\n"
+        f"  2. Gráfica Circular / Tarta (para proporciones de severidad, alertas o profundidad):\n"
+        f"  ```chart\n"
+        f"  {{\"type\": \"pie\", \"title\": \"Distribución de Sismicidad\", \"data\": [{{\"label\": \"Categoría\", \"value\": 10}}]}}\n"
+        f"  ```\n"
         f"- Tono: Profesional, conciso y técnico.\n\n"
         f"{context_str}\n\n"
         f"Pregunta del usuario: {cleaned_prompt}\n"
@@ -912,19 +918,15 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
                 f"- **Frecuencia Sísmica**: El día de hoy ({d_today['total_events']} sismos) registra una variación del **{diff_str}** frente al día de ayer ({d_yesterday['total_events']} sismos).\n"
                 f"- **Energía Máxima Liberada**: La magnitud máxima de hoy alcanzó **M {d_today['max_mag']:.1f}** en *{plc_today}*, frente a **M {d_yesterday['max_mag']:.1f}** de ayer en *{plc_yesterday}*.\n"
                 f"- **Riesgo Tsunami**: En las últimas 48 horas se contabilizan **{d_today['tsunami_count'] + d_yesterday['tsunami_count']}** alertas oficiales de tsunami emitidas.\n\n"
-                f"```mermaid\n"
-                f"flowchart LR\n"
-                f"    subgraph Ayer [\"📅 {dt_yesterday_str} (Ayer)\"]\n"
-                f"        direction TB\n"
-                f"        A1[\"Sismos: {d_yesterday['total_events']}\"]\n"
-                f"        A2[\"Máx: M {d_yesterday['max_mag']:.1f}\"]\n"
-                f"    end\n"
-                f"    subgraph Hoy [\"📅 {dt_today_str} (Hoy)\"]\n"
-                f"        direction TB\n"
-                f"        H1[\"Sismos: {d_today['total_events']} ({diff_str})\"]\n"
-                f"        H2[\"Máx: M {d_today['max_mag']:.1f}\"]\n"
-                f"    end\n"
-                f"    Ayer --> Hoy\n"
+                f"```chart\n"
+                f"{{\n"
+                f'  "type": "bar",\n'
+                f'  "title": "Comparativa de Actividad: Hoy vs Ayer",\n'
+                f'  "data": [\n'
+                f'    {{"label": "Hoy ({dt_today_str})", "value": {d_today["total_events"]}}},\n'
+                f'    {{"label": "Ayer ({dt_yesterday_str})", "value": {d_yesterday["total_events"]}}}\n'
+                f'  ]\n'
+                f"}}\n"
                 f"```"
             )
         else:
@@ -946,6 +948,13 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
                     table_markdown += f"| {mag_val} | {plc} | {dep} | {tsu} | {sig_level} |\n"
                 table_markdown += "\n"
 
+            # Preparar datos de gráfica de barras de sismos más fuertes
+            chart_data = []
+            for ev in largest_events[:5]:
+                label_name = ev.get('place', 'Sismo')[:20]
+                chart_data.append(f'{{"label": "{label_name}", "value": {ev.get("mag", 0.0):.1f}}}')
+            chart_items_str = ",\n    ".join(chart_data) if chart_data else '{"label": "Máximo", "value": ' + str(max_m) + '}'
+
             reply_text = (
                 f"**Resumen Analítico en Tiempo Real (Capa Gold)**:\n\n"
                 f"- **Actividad 24 Horas**: Se han procesado **{total_e}** sismos con una magnitud promedio de **M {avg_m}**.\n"
@@ -953,12 +962,14 @@ def chat_with_gold(payload: ChatRequest, user: dict = Depends(require_viewer)):
                 f"- **Alertas de Tsunami**: **{tsunami_c}** evento(s) con potencial de tsunami activo.\n"
                 f"- **SLA de Calidad**: {kpis.get('quality_score', 100.0)}% de datos validados por PySpark.\n\n"
                 f"{table_markdown}"
-                f"```mermaid\n"
-                f"flowchart TD\n"
-                f"    A[\"🌐 Sismicidad Global (24h): {total_e} eventos\"] --> B[\"⚡ Sismo Máximo: M {max_m}\"]\n"
-                f"    A --> C[\"📊 Magnitud Promedio: M {avg_m}\"]\n"
-                f"    A --> D[\"🌊 Alertas Tsunami: {tsunami_c}\"]\n"
-                f"    B --> E[\"📍 {place_max[:32]}\"]\n"
+                f"```chart\n"
+                f"{{\n"
+                f'  "type": "bar",\n'
+                f'  "title": "Top Sismos Más Fuertes (24h)",\n'
+                f'  "data": [\n'
+                f'    {chart_items_str}\n'
+                f'  ]\n'
+                f"}}\n"
                 f"```"
             )
 

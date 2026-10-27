@@ -57,28 +57,34 @@ export const Navbar: React.FC<NavbarProps> = ({
             <LayoutDashboard className="w-3.5 h-3.5" />
             <span>Dashboard</span>
           </button>
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`flex items-center gap-2 py-2 text-xs font-mono transition-all press-action border-b-2 ${
-              activeTab === 'reports'
-                ? 'border-rose-500 text-white font-bold'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Reportes IA</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('pipeline')}
-            className={`flex items-center gap-2 py-2 text-xs font-mono transition-all press-action border-b-2 ${
-              activeTab === 'pipeline'
-                ? 'border-rose-500 text-white font-bold'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5" />
-            <span>Pipeline & Calidad</span>
-          </button>
+
+          {/* Reportes IA y Pipeline & Calidad: Exclusivos para rol Administrador */}
+          {session.role === 'admin' && (
+            <>
+              <button
+                onClick={() => setActiveTab('reports')}
+                className={`flex items-center gap-2 py-2 text-xs font-mono transition-all press-action border-b-2 ${
+                  activeTab === 'reports'
+                    ? 'border-rose-500 text-white font-bold'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Reportes IA</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('pipeline')}
+                className={`flex items-center gap-2 py-2 text-xs font-mono transition-all press-action border-b-2 ${
+                  activeTab === 'pipeline'
+                    ? 'border-rose-500 text-white font-bold'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Pipeline & Calidad</span>
+              </button>
+            </>
+          )}
         </nav>
 
         {/* Selector Global de Ventana Temporal (24h / 7d / 30d) & Telemetría */}
