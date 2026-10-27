@@ -496,10 +496,33 @@ def get_pipeline_status(user: dict = Depends(require_viewer)):
             """)
             metrics = cur.fetchall()
 
-            # Frescura del dato
-            cur.execute("SELECT MAX(ingested_at) as last_ingest FROM bronze.raw_events;")
-            last_ingest_row = cur.fetchone()
-            last_ingest = last_ingest_row["last_ingest"] if last_ingest_row else None
+            # Frescura del dato en Capa Bronze (Verificación directa en MinIO S3 No Relacional)
+            last_ingest = None
+            try:
+                minio_endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+                minio_access_key = os.getenv("MINIO_ACCESS_KEY", "sismowatch_minio_admin")
+                minio_secret_key = os.getenv("MINIO_SECRET_KEY", "SismoMinioPass2026!")
+                minio_bucket = os.getenv("MINIO_BRONZE_BUCKET", "sismowatch-bronze")
+
+                from minio import Minio
+                minio_client = Minio(
+                    minio_endpoint,
+                    access_key=minio_access_key,
+                    secret_key=minio_secret_key,
+                    secure=False
+                )
+                if minio_client.bucket_exists(minio_bucket):
+                    objs = list(minio_client.list_objects(minio_bucket, recursive=True))
+                    if objs:
+                        latest_obj = max(objs, key=lambda x: x.last_modified)
+                        last_ingest = latest_obj.last_modified
+            except Exception as minio_err:
+                logger.warning(f"No se pudo consultar MinIO para frescura Bronze: {minio_err}")
+
+            if not last_ingest:
+                cur.execute("SELECT MAX(ingested_at) as last_ingest FROM bronze.raw_events;")
+                last_ingest_row = cur.fetchone()
+                last_ingest = last_ingest_row["last_ingest"] if last_ingest_row else None
 
             # Último evento en Gold
             cur.execute("SELECT MAX(time_utc) as last_event FROM silver.events;")

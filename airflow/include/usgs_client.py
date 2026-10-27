@@ -56,8 +56,7 @@ def fetch_and_ingest_feed(source_url: str = USGS_REALTIME_URL) -> int:
                 ON CONFLICT (id) DO UPDATE SET
                     payload = EXCLUDED.payload,
                     payload_hash = EXCLUDED.payload_hash,
-                    ingested_at = CURRENT_TIMESTAMP
-                WHERE bronze.raw_events.payload_hash <> EXCLUDED.payload_hash;
+                    ingested_at = CURRENT_TIMESTAMP;
             """
             for feature in features:
                 feature_id = feature.get("id")
@@ -113,8 +112,7 @@ def fetch_historical_backfill(start_date: str, end_date: str, min_magnitude: flo
                 ON CONFLICT (id) DO UPDATE SET
                     payload = EXCLUDED.payload,
                     payload_hash = EXCLUDED.payload_hash,
-                    ingested_at = CURRENT_TIMESTAMP
-                WHERE bronze.raw_events.payload_hash <> EXCLUDED.payload_hash;
+                    ingested_at = CURRENT_TIMESTAMP;
             """
             for feature in features:
                 feature_id = feature.get("id")
