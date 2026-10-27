@@ -67,16 +67,24 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ status, isAdmin, onR
           <p className="text-[11px] text-slate-400 mt-1">Sondeo automático cada 30 segundos</p>
         </div>
 
-        {/* Último Evento en Gold */}
+        {/* Actualización Capa Gold */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Último Evento en Gold</span>
+            <span className="text-xs font-medium">Actualización Capa Gold</span>
             <Clock className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="text-sm font-bold text-white font-mono mt-1">
-            {status?.last_event_time_utc ? new Date(status.last_event_time_utc).toLocaleString() : 'N/A'}
+            {status?.last_gold_updated_at 
+              ? new Date(status.last_gold_updated_at).toLocaleString() 
+              : (status?.last_event_time_utc ? new Date(status.last_event_time_utc).toLocaleString() : 'N/A')}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Sincronizado y verificado por PySpark</p>
+          <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+            <span>Último sismo:</span>
+            <span className="text-cyan-300 font-mono">
+              {status?.last_event_time_utc ? new Date(status.last_event_time_utc).toLocaleTimeString() : 'N/A'}
+            </span>
+            <span className="text-slate-500">(PySpark)</span>
+          </p>
         </div>
 
         {/* SLA Global de Calidad */}

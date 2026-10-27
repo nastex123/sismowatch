@@ -67,6 +67,7 @@ export interface QualityMetric {
 export interface PipelineStatus {
   last_ingested_at: string | null;
   last_event_time_utc: string | null;
+  last_gold_updated_at?: string | null;
   is_pipeline_fresh: boolean;
   quality_history: QualityMetric[];
 }

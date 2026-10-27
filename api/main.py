@@ -524,7 +524,12 @@ def get_pipeline_status(user: dict = Depends(require_viewer)):
                 last_ingest_row = cur.fetchone()
                 last_ingest = last_ingest_row["last_ingest"] if last_ingest_row else None
 
-            # Último evento en Gold
+            # Última sincronización y cálculo de Capa Gold
+            cur.execute("SELECT MAX(last_updated_at) as last_gold_update FROM gold.kpis_24h;")
+            gold_row = cur.fetchone()
+            last_gold_update = gold_row["last_gold_update"] if gold_row else None
+
+            # Último sismo físico registrado a nivel global
             cur.execute("SELECT MAX(time_utc) as last_event FROM silver.events;")
             last_event_row = cur.fetchone()
             last_event = last_event_row["last_event"] if last_event_row else None
@@ -532,6 +537,7 @@ def get_pipeline_status(user: dict = Depends(require_viewer)):
             return {
                 "last_ingested_at": last_ingest,
                 "last_event_time_utc": last_event,
+                "last_gold_updated_at": last_gold_update,
                 "is_pipeline_fresh": True,
                 "quality_history": [dict(m) for m in metrics]
             }
